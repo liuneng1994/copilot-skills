@@ -1,0 +1,59 @@
+version: 1
+
+storage:
+  db_path: ~/.copilot/memory/copilot_memory.db
+  enable_fts5: true
+  enable_vector_index: false
+
+scopes:
+  thread:
+    retention_days: 7
+    share_across_repos: false
+    allowed_kinds: [decision, summary, workflow, failure]
+  repo:
+    retention_days: 180
+    share_across_repos: false
+    allowed_kinds: [fact, workflow, constraint, decision, summary, failure]
+  user:
+    retention_days: 365
+    share_across_repos: true
+    allowed_kinds: [preference, workflow, constraint]
+  reflection:
+    retention_days: 180
+    share_across_repos: false
+    allowed_kinds: [failure, decision, summary]
+
+write_policy:
+  store_only_verified: true
+  block_secrets: true
+  dedupe_on_fingerprint: true
+  max_writes_per_task: 6
+  min_confidence: 0.55
+  min_value_score: 0.60
+
+read_policy:
+  default_limit: 8
+  scope_order: [thread, repo, user, reflection]
+  ranking_weights:
+    lexical: 0.45
+    confidence: 0.20
+    value: 0.20
+    recency: 0.10
+    scope_bias: 0.05
+
+compaction:
+  archive_thread_days: 7
+  archive_general_days: 60
+  archive_superseded_days: 14
+  low_value_threshold: 0.35
+  unused_access_threshold: 0
+
+security:
+  forbidden_patterns:
+    - private_key
+    - github_token
+    - aws_access_key
+    - password_assignment
+  redact_before_store: false
+  allow_export: true
+  allow_delete: true

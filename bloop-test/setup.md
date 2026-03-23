@@ -1,0 +1,85 @@
+# Bloop Setup (One-Time)
+
+Run this complete block to install bloop, generate config, and patch for Gluten:
+
+```bash
+# === 1. Environment (MUST use JDK 17, not 21) ===
+export JAVA_HOME=/usr/lib/jvm/msopenjdk-17
+export PATH="$HOME/.local/share/coursier/bin:$JAVA_HOME/bin:$PATH"
+
+# === 2. Install Bloop (skip if already installed) ===
+if ! command -v bloop &>/dev/null; then
+  cs install bloop
+fi
+
+# === 3. Restart Bloop server with JDK 17 ===
+# CRITICAL: Bloop server MUST run on JDK 17. JDK 21 causes
+# "sun.nio.ch.DirectBuffer not found" errors due to module restrictions.
+bloop exit 2>/dev/null; sleep 2
+bloop about
+
+# === 4. Maven auth for ADO feeds ===
+M2_SETTINGS="/root/.m2/settings.xml"
+PAT=$(xmlstarlet sel -N x="http://maven.apache.org/SETTINGS/1.0.0" \
+  -t -v "//x:server[x:id='SynapseMaven']/x:password" "$M2_SETTINGS" \
+  | tr -d '\n' | tr -d '\r')
+export MSDATA_USER="msdata"
+export MSDATA_KEY="$PAT"
+
+# === 5. Generate protobuf sources FIRST (bloop can't run Maven plugins) ===
+cd /root/gluten
+mvn -s .pipelines/conf/settings.xml generate-sources \
+  -Pjava-17,spark-4.1,scala-2.13,backends-velox,delta \
+  -DskipTests -Dspotless.check.skip=true -Dscalastyle.skip=true
+
+# === 6. Generate Bloop config from Maven POM ===
+mvn -s .pipelines/conf/settings.xml \
+  ch.epfl.scala:bloop-maven-plugin:2.0.3:bloopInstall \
+  -Pjava-17,spark-4.1,scala-2.13,backends-velox,delta \
+  -DskipTests -Dspotless.check.skip=true -Dscalastyle.skip=true
+
+# === 7. Patch Bloop configs ===
+python3 -c "
+import json, glob, os
+
+for f in glob.glob('.bloop/*.json'):
+    with open(f) as fh:
+        d = json.load(fh)
+    modified = False
+
+    # 7a. Add protobuf generated-sources to bloop source paths
+    srcs = d['project']['sources']
+    for src in list(srcs):
+        base = os.path.dirname(src)
+        module_dir = os.path.dirname(os.path.dirname(base))
+        gen_dir = os.path.join(module_dir, 'target/generated-sources/protobuf/java')
+        if os.path.isdir(gen_dir) and gen_dir not in srcs:
+            srcs.append(gen_dir)
+            modified = True
+            break
+
+    # 7b. Remove -release scalac option (incompatible with bloop Zinc)
+    scala = d['project'].get('scala', {})
+    opts = scala.get('options', [])
+    new_opts = [o for o in opts if o not in ('-release:17', '-release')]
+    if len(new_opts) != len(opts):
+        scala['options'] = new_opts
+        modified = True
+
+    if modified:
+        with open(f, 'w') as fh:
+            json.dump(d, fh, indent=4)
+"
+
+# === 8. Verify ===
+bloop projects | head -5
+bloop compile gluten-ras-common  # Quick smoke test
+echo "=== Bloop setup complete ==="
+```
+
+## When to Re-run Setup
+
+- Switching Spark versions (e.g., 3.5 → 4.1)
+- Adding/removing Maven modules or dependencies
+- Proto files changed (re-run steps 5-7)
+- After `git checkout` to a different branch with different POM
