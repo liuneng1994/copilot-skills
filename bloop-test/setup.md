@@ -69,6 +69,52 @@ for f in glob.glob('.bloop/*.json'):
     if modified:
         with open(f, 'w') as fh:
             json.dump(d, fh, indent=4)
+
+# 7c. Add JVM test options to all *-test.json configs
+#     (matches Maven's extraJavaTestArgs + scalatest systemProperties)
+jvm_opts = [
+    '-XX:+IgnoreUnrecognizedVMOptions',
+    '--add-opens=java.base/java.lang=ALL-UNNAMED',
+    '--add-opens=java.base/java.lang.invoke=ALL-UNNAMED',
+    '--add-opens=java.base/java.lang.reflect=ALL-UNNAMED',
+    '--add-opens=java.base/java.io=ALL-UNNAMED',
+    '--add-opens=java.base/java.net=ALL-UNNAMED',
+    '--add-opens=java.base/java.nio=ALL-UNNAMED',
+    '--add-opens=java.base/java.time=ALL-UNNAMED',
+    '--add-opens=java.base/java.util=ALL-UNNAMED',
+    '--add-opens=java.base/java.util.concurrent=ALL-UNNAMED',
+    '--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED',
+    '--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED',
+    '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
+    '--add-opens=java.base/sun.nio.cs=ALL-UNNAMED',
+    '--add-opens=java.base/sun.security.action=ALL-UNNAMED',
+    '--add-opens=java.base/sun.util.calendar=ALL-UNNAMED',
+    '-Djdk.reflect.useDirectMethodHandle=false',
+    '-Dio.netty.tryReflectionSetAccessible=true',
+    '-Dlog4j.configurationFile=file:src/test/resources/log4j2.properties',
+    '-Dspark.testing=true',
+    '-Xmx4g',
+]
+for f in glob.glob('.bloop/*-test.json'):
+    with open(f) as fh:
+        d = json.load(fh)
+    platform = d['project'].setdefault('platform', {})
+    platform['name'] = 'jvm'
+    config = platform.setdefault('config', {})
+    config['options'] = jvm_opts
+    with open(f, 'w') as fh:
+        json.dump(d, fh, indent=4)
+
+# 7d. Add velox UDF lib path for backends-velox-test
+f = '.bloop/backends-velox-test.json'
+with open(f) as fh:
+    d = json.load(fh)
+opts = d['project']['platform']['config']['options']
+udf_opt = '-Dvelox.udf.lib.path=../cpp/build//velox/udf/examples/libmyudf.so,../cpp/build//velox/udf/examples/libmyudaf.so'
+if udf_opt not in opts:
+    opts.append(udf_opt)
+with open(f, 'w') as fh:
+    json.dump(d, fh, indent=4)
 "
 
 # === 8. Verify ===
