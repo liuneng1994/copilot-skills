@@ -95,6 +95,26 @@ export PYSPARK_DRIVER_PYTHON=/root/miniconda3/envs/py313/bin/python3.13
 | `gluten-ras/planner` | `gluten-ras-planner` | `gluten-ras-planner-test` |
 | `gluten-delta` | `gluten-delta` | `gluten-delta-test` |
 | `gluten-arrow` | `gluten-arrow` | `gluten-arrow-test` |
+| `gluten-ut/spark41` | `gluten-ut-velox-spark41` | `gluten-ut-velox-spark41-test` |
+| `gluten-ut/common` | `gluten-ut-velox-common` | `gluten-ut-velox-common-test` |
+
+**Note:** `gluten-ut` modules require `-Pspark-ut` profile during setup (steps 5-6).
+The bloop project names use the Maven artifactId, which may differ from the directory name.
+Run `bloop projects | grep ut` to find exact names after setup.
+
+## Gluten-UT (Spark Unit Tests)
+
+Gluten-UT wraps upstream Spark test suites with Gluten-specific overrides.
+These require the `spark-ut` profile during bloop setup.
+
+```bash
+# Example: run GlutenPythonUDFSuite for Spark 4.1
+bloop test gluten-ut-velox-spark41-test \
+  --only "org.apache.spark.sql.execution.python.GlutenPythonUDFSuite" -- \
+  -Djava.io.tmpdir=/tmp \
+  -Djava.library.path=/root/gluten/cpp/build/releases \
+  -Dspark.test.home=$SPARK_HOME
+```
 
 ## Tips
 

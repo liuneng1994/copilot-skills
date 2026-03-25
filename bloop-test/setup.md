@@ -29,13 +29,13 @@ export MSDATA_KEY="$PAT"
 # === 5. Generate protobuf sources FIRST (bloop can't run Maven plugins) ===
 cd /root/gluten
 mvn -s .pipelines/conf/settings.xml generate-sources \
-  -Pjava-17,spark-4.1,scala-2.13,backends-velox,delta \
+  -Pjava-17,spark-4.1,scala-2.13,backends-velox,delta,spark-ut \
   -DskipTests -Dspotless.check.skip=true -Dscalastyle.skip=true
 
 # === 6. Generate Bloop config from Maven POM ===
 mvn -s .pipelines/conf/settings.xml \
   ch.epfl.scala:bloop-maven-plugin:2.0.3:bloopInstall \
-  -Pjava-17,spark-4.1,scala-2.13,backends-velox,delta \
+  -Pjava-17,spark-4.1,scala-2.13,backends-velox,delta,spark-ut \
   -DskipTests -Dspotless.check.skip=true -Dscalastyle.skip=true
 
 # === 7. Patch Bloop configs ===
