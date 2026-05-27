@@ -14,6 +14,19 @@ if [ "$(realpath "$COPILOT_HOME/skills")" != "$(realpath "$SCRIPT_DIR")" ]; then
     echo "Consider: ln -sf $SCRIPT_DIR $COPILOT_HOME/skills"
 fi
 
+# 1b. Link global copilot-instructions.md from this repo
+INSTRUCTIONS_SRC="$SCRIPT_DIR/copilot-instructions.md"
+INSTRUCTIONS_DST="$COPILOT_HOME/copilot-instructions.md"
+if [ -f "$INSTRUCTIONS_SRC" ]; then
+    mkdir -p "$COPILOT_HOME"
+    if [ -e "$INSTRUCTIONS_DST" ] && [ ! -L "$INSTRUCTIONS_DST" ]; then
+        echo "Backing up existing $INSTRUCTIONS_DST to $INSTRUCTIONS_DST.bak"
+        mv "$INSTRUCTIONS_DST" "$INSTRUCTIONS_DST.bak"
+    fi
+    ln -sf "$INSTRUCTIONS_SRC" "$INSTRUCTIONS_DST"
+    echo "Linked $INSTRUCTIONS_DST -> $INSTRUCTIONS_SRC"
+fi
+
 # 2. Restore plugins from manifest
 MANIFEST="$SCRIPT_DIR/plugins.json"
 if [ ! -f "$MANIFEST" ]; then
