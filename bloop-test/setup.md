@@ -1,5 +1,30 @@
 # Bloop Setup (One-Time)
 
+## Prerequisite
+
+Bloop only does **incremental Scala compilation** — it does **not** run Maven plugins
+(protobuf, shade, antlr, etc.) and it does not build the native C++ side. Before bloop
+can work, the project must have already been built once via Maven so that:
+
+- `target/generated-sources/protobuf/java/` exists for every module that has `.proto` files
+- The native `cpp/build/releases/lib{gluten,velox}.so` libraries exist
+- The `~/.m2/repository/org/apache/gluten/...` artifacts are installed
+
+The canonical entry point is the unified build script (handles M2 protection, CI mode,
+PGO, ASan, Conda, jemalloc, etc.):
+
+```bash
+cd /root/gluten
+./dev/build-nee.sh --all          # First-time: build Velox + C++ + Java
+./dev/build-nee.sh --gluten-java  # Incremental Java rebuild only
+./dev/build-nee.sh --gluten       # Incremental C++ rebuild only
+```
+
+Once `./dev/build-nee.sh --all` has succeeded at least once, proceed with the bloop
+setup below.
+
+## Run setup
+
 Run this complete block to install bloop, generate config, and patch for Gluten:
 
 ```bash
@@ -27,15 +52,25 @@ export MSDATA_USER="msdata"
 export MSDATA_KEY="$PAT"
 
 # === 5. Generate protobuf sources FIRST (bloop can't run Maven plugins) ===
+#
+# Maven profile notes:
+#   -Pspark-4.1 -Pscala-2.13 -Pbackends-velox -Pdelta -- baseline (matches dev/lib/build-gluten-java.sh)
+#   -Pspark-ut                                        -- required for gluten-ut test compilation
+#   -Pjava-17                                         -- OPTIONAL; auto-activated when JAVA_HOME points to JDK 17
+#   -Prsm                                             -- add for remote-shuffle (RSM) tests, matches build-nee.sh --ci
+#
+# Settings file notes:
+#   ~/.m2/settings.xml             -- default for local dev (matches build-nee.sh local mode)
+#   .pipelines/conf/settings.xml   -- CI settings (matches build-nee.sh --ci)
 cd /root/gluten
-mvn -s .pipelines/conf/settings.xml generate-sources \
-  -Pjava-17,spark-4.1,scala-2.13,backends-velox,delta,spark-ut \
+mvn -s ~/.m2/settings.xml generate-sources \
+  -Pspark-4.1,scala-2.13,backends-velox,delta,spark-ut \
   -DskipTests -Dspotless.check.skip=true -Dscalastyle.skip=true
 
 # === 6. Generate Bloop config from Maven POM ===
-mvn -s .pipelines/conf/settings.xml \
+mvn -s ~/.m2/settings.xml \
   ch.epfl.scala:bloop-maven-plugin:2.0.3:bloopInstall \
-  -Pjava-17,spark-4.1,scala-2.13,backends-velox,delta,spark-ut \
+  -Pspark-4.1,scala-2.13,backends-velox,delta,spark-ut \
   -DskipTests -Dspotless.check.skip=true -Dscalastyle.skip=true
 
 # === 7. Patch Bloop configs ===
@@ -129,3 +164,4 @@ echo "=== Bloop setup complete ==="
 - Adding/removing Maven modules or dependencies
 - Proto files changed (re-run steps 5-7)
 - After `git checkout` to a different branch with different POM
+- After running `./dev/build-nee.sh --gluten-java --clean` (POM regeneration may change classpath)
