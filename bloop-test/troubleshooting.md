@@ -10,13 +10,14 @@
 | `No bloop server running` | Server not started | `bloop about` (auto-starts) |
 | `Project not found` | Config not generated or stale | `bloop projects` to check, re-run setup if needed |
 | Stale compilation / wrong results | Zinc cache stale | `bloop clean <project>` then `bloop compile <project>` |
-| ADO feed 401 during config generation | Maven auth not set | Export `MSDATA_USER` and `MSDATA_KEY` (see setup.md step 4) |
+| ADO feed 401 during config generation | Maven auth not set or token expired | `python3 /root/scripts/m2-azure-bearer.py inject` to inject a fresh ADO bearer token into `~/.m2/settings.xml` |
 | `-release does not accept multiple arguments` | `-release:17` in scalac options | Re-run patch script (step 7b in setup.md) |
 | Tests hang / no output | Bloop server OOM or stuck | `bloop exit`, increase heap in `~/.bloop/bloop.json` (`-Xmx`), restart |
 | Bloop config out of sync with POM | Module/dep added, scope changed, or `./dev/build-nee.sh --gluten-java --clean` run | Run `./dev/build-nee.sh --gluten-java` to regenerate Maven state, then re-run setup.md steps 5-7 |
-| `NoClassDefFoundError` on `azure-shuffle-blob` / `org.apache.spark.shuffle.remote.*` | Bloop generated without `-Prsm` profile | Re-run setup.md step 5/6 with `rsm` added to `-Pspark-4.1,...,rsm` (see run-tests.md "RSM Tests") |
+| `NoClassDefFoundError: com/azure/storage/blob/BlobServiceClientBuilder` (or `azure-shuffle-blob` / Fabric `InstrumentedExternalCatalog`) on suite teardown | `ColumnarShuffleManager.stop()` calls into RSM unconditionally; bloop does not propagate the `-Prsm` transitive jars | RSM tests are not supported via bloop — run them via Maven (`./dev/build-nee.sh --ci` + `mvn test -Prsm`). See run-tests.md "RSM Tests" |
 | `NoClassDefFoundError` on shaded/relocated classes (e.g. relocated Guava, Netty) | Maven shade plugin doesn't run during bloop install | Fall back to `mvn test -pl <module>` for suites that hit shaded classes |
-| `Could not find or load main class ch.epfl.scala.bloop` during install | Wrong Maven settings file or auth not set | Use `mvn -s ~/.m2/settings.xml` (see setup.md), verify `MSDATA_USER`/`MSDATA_KEY` |
+| ADO 401 / `Could not transfer artifact ... from BBC-VHD_PublicPackages` mid-build | Bearer token expired (validity ~1h locally) | Re-inject: `python3 /root/scripts/m2-azure-bearer.py inject` then retry the failing `mvn` |
+| `Could not find or load main class ch.epfl.scala.bloop` during install | Wrong settings file or auth not set | Use `mvn -s ~/.m2/settings.xml ...`, ensure `python3 /root/scripts/m2-azure-bearer.py inject` has populated `<servers>` |
 
 ## Verify Environment
 

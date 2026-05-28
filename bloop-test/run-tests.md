@@ -122,46 +122,31 @@ grep -E "Spark41JavaHome|CONDA_|SPARK_HOME" .pipelines/Templates/Spark41Variable
 | `gluten-ras/planner` | `gluten-ras-planner` | `gluten-ras-planner-test` |
 | `gluten-delta` | `gluten-delta` | `gluten-delta-test` |
 | `gluten-arrow` | `gluten-arrow` | `gluten-arrow-test` |
-| `gluten-ut/spark41` | `gluten-ut-velox-spark41` | `gluten-ut-velox-spark41-test` |
-| `gluten-ut/common` | `gluten-ut-velox-common` | `gluten-ut-velox-common-test` |
 
-**Note:** `gluten-ut` modules require `-Pspark-ut` profile during setup (steps 5-6).
-The bloop project names use the Maven artifactId, which may differ from the directory name.
-Run `bloop projects | grep ut` to find exact names after setup.
+**Note:** The bloop project names use the Maven artifactId, which may differ
+from the directory name. Run `bloop projects | grep <hint>` to find exact names
+after setup. Modules requiring the `-Pspark-ut` profile (gluten-ut*) are not
+supported by this skill — use Maven for those.
 
-## Gluten-UT (Spark Unit Tests)
+## Remote Shuffle Manager (RSM) Tests — NOT supported by bloop
 
-Gluten-UT wraps upstream Spark test suites with Gluten-specific overrides.
-These require the `spark-ut` profile during bloop setup.
+RSM tests live in `azure-shuffle-blob/` and `ColumnarShuffleManager.stop()` calls
+into RSM unconditionally. `bloopInstall` does not propagate the transitive
+azure-storage-blob / Fabric `InstrumentedExternalCatalog` jars across module
+boundaries, so even non-RSM suites in `backends-velox-test` will abort in suite
+teardown with `NoClassDefFoundError: com/azure/storage/blob/BlobServiceClientBuilder`
+once `-Prsm` is in the build.
 
-```bash
-# Example: run GlutenPythonUDFSuite for Spark 4.1
-bloop test gluten-ut-velox-spark41-test \
-  --only "org.apache.spark.sql.execution.python.GlutenPythonUDFSuite" -- \
-  -Djava.io.tmpdir=/tmp \
-  -Djava.library.path=$GLUTEN_HOME/cpp/build/releases \
-  -Dspark.test.home=$SPARK_HOME
-```
-
-## Remote Shuffle Manager (RSM) Tests
-
-RSM tests live in `azure-shuffle-blob/` and a few suites under `backends-velox-test`.
-They require the `-Prsm` Maven profile, which is added by `./dev/build-nee.sh --ci`.
-If bloop config was generated WITHOUT `-Prsm`, RSM-specific classpath entries are
-missing and RSM tests will fail to load (NoClassDefFoundError on azure-shuffle-blob
-classes).
+Run RSM (and any suite that transitively touches `RemoteShuffleManagerGluten`) via
+Maven:
 
 ```bash
-# Re-generate bloop config with the rsm profile included:
-mvn -s ~/.m2/settings.xml \
-  ch.epfl.scala:bloop-maven-plugin:2.0.3:bloopInstall \
-  -Pspark-4.1,scala-2.13,backends-velox,delta,spark-ut,rsm \
-  -DskipTests -Dspotless.check.skip=true -Dscalastyle.skip=true
-# Then re-run the patch script (step 7 in setup.md).
-
-# Example RSM test invocation
-bloop test backends-velox-test \
-  -o org.apache.spark.shuffle.remote.RemoteShuffleManagerSuite
+cd $GLUTEN_HOME
+./dev/build-nee.sh --ci   # Builds with -Prsm
+mvn -s ~/.m2/settings.xml test \
+  -pl backends-velox \
+  -Pspark-4.1,scala-2.13,backends-velox,delta,rsm \
+  -Dtest='*RemoteShuffle*' -DfailIfNoTests=false
 ```
 
 ## Tips
@@ -172,62 +157,5 @@ bloop test backends-velox-test \
 - Bloop caches compilation state — incremental builds are near-instant
 - After `./dev/build-nee.sh --gluten-java --clean` POM/classpath may have changed;
   re-run bloop setup to regenerate `.bloop/*.json`
-
-| Maven `-pl` path | Bloop compile | Bloop test |
-|---|---|---|
-| `backends-velox` | `backends-velox` | `backends-velox-test` |
-| `gluten-core` | `gluten-core` | `gluten-core-test` |
-| `gluten-substrait` | `gluten-substrait` | `gluten-substrait-test` |
-| `gluten-ras/common` | `gluten-ras-common` | `gluten-ras-common-test` |
-| `gluten-ras/planner` | `gluten-ras-planner` | `gluten-ras-planner-test` |
-| `gluten-delta` | `gluten-delta` | `gluten-delta-test` |
-| `gluten-arrow` | `gluten-arrow` | `gluten-arrow-test` |
-| `gluten-ut/spark41` | `gluten-ut-velox-spark41` | `gluten-ut-velox-spark41-test` |
-| `gluten-ut/common` | `gluten-ut-velox-common` | `gluten-ut-velox-common-test` |
-
-**Note:** `gluten-ut` modules require `-Pspark-ut` profile during setup (steps 5-6).
-The bloop project names use the Maven artifactId, which may differ from the directory name.
-Run `bloop projects | grep ut` to find exact names after setup.
-
-## Gluten-UT (Spark Unit Tests)
-
-Gluten-UT wraps upstream Spark test suites with Gluten-specific overrides.
-These require the `spark-ut` profile during bloop setup.
-
-```bash
-# Example: run GlutenPythonUDFSuite for Spark 4.1
-bloop test gluten-ut-velox-spark41-test \
-  --only "org.apache.spark.sql.execution.python.GlutenPythonUDFSuite" -- \
-  -Djava.io.tmpdir=/tmp \
-  -Djava.library.path=/root/gluten/cpp/build/releases \
-  -Dspark.test.home=$SPARK_HOME
-```
-
-## Remote Shuffle Manager (RSM) Tests
-
-RSM tests live in `azure-shuffle-blob/` and a few suites under `backends-velox-test`.
-They require the `-Prsm` Maven profile, which is added by `./dev/build-nee.sh --ci`.
-If bloop config was generated WITHOUT `-Prsm`, RSM-specific classpath entries will be
-missing and RSM tests will fail to load.
-
-```bash
-# Re-generate bloop config with the rsm profile included:
-mvn -s ~/.m2/settings.xml \
-  ch.epfl.scala:bloop-maven-plugin:2.0.3:bloopInstall \
-  -Pspark-4.1,scala-2.13,backends-velox,delta,spark-ut,rsm \
-  -DskipTests -Dspotless.check.skip=true -Dscalastyle.skip=true
-# Then re-run the patch script (step 7 in setup.md).
-
-# Example RSM test invocation
-bloop test backends-velox-test \
-  -o org.apache.spark.shuffle.remote.RemoteShuffleManagerSuite
-```
-
-## Tips
-
-- `bloop compile <project> -w` for continuous compilation during development
-- `bloop clean <project>` to force full recompile
-- `bloop projects` to list all available projects
-- Bloop caches compilation state — incremental builds are near-instant
-- After `./dev/build-nee.sh --gluten-java --clean` POM/classpath may have changed;
-  re-run bloop setup to regenerate `.bloop/*.json`
+- When `mvn` returns 401 from ADO feeds, re-inject the bearer token:
+  `python3 /root/scripts/m2-azure-bearer.py inject`

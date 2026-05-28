@@ -23,6 +23,19 @@ cd /root/gluten
 Once `./dev/build-nee.sh --all` has succeeded at least once, proceed with the bloop
 setup below.
 
+## Not supported by this skill
+
+- **RSM (Remote Shuffle) tests, `-Prsm` profile, `azure-shuffle-blob` test suites.**
+  `bloopInstall` doesn't propagate the `azure-shuffle-blob` transitive jar set
+  (azure-storage-blob, Fabric InstrumentedExternalCatalog, etc.) across module
+  boundaries, and `ColumnarShuffleManager.stop()` calls into RSM unconditionally,
+  so even non-RSM suites in `backends-velox-test` will abort in teardown with
+  `NoClassDefFoundError: com/azure/storage/blob/BlobServiceClientBuilder`.
+  Run RSM tests via Maven instead: `./dev/build-nee.sh --ci` then `mvn test -pl backends-velox -Prsm`.
+- **gluten-ut suites (`-Pspark-ut`).** Requires extra test-jar artifacts that
+  are produced by an earlier `mvn install`. Out of scope here — use Maven.
+
+
 ## Run setup
 
 Run this complete block to install bloop, generate config, and patch for Gluten:
@@ -43,34 +56,36 @@ fi
 bloop exit 2>/dev/null; sleep 2
 bloop about
 
-# === 4. Maven auth for ADO feeds ===
-M2_SETTINGS="/root/.m2/settings.xml"
-PAT=$(xmlstarlet sel -N x="http://maven.apache.org/SETTINGS/1.0.0" \
-  -t -v "//x:server[x:id='SynapseMaven']/x:password" "$M2_SETTINGS" \
-  | tr -d '\n' | tr -d '\r')
-export MSDATA_USER="msdata"
-export MSDATA_KEY="$PAT"
+# === 4. Maven auth for ADO feeds (Azure DevOps bearer token) ===
+# Kandor PAT auth is deprecated (Feature 5242356). The helper script injects
+# fresh OAuth bearer tokens into ~/.m2/settings.xml using the same mechanism
+# as the Microsoft Azure Pipelines MavenAuthenticate@0 task. Resolution
+# precedence: AZURE_DEVOPS_BEARER env > AZURE_DEVOPS_BEARER_FILE >
+# `az account get-access-token` (interactive fallback). Idempotent + atomic.
+#
+# Re-inject any time the token expires (mvn returns 401 from ADO feeds).
+python3 /root/scripts/m2-azure-bearer.py inject
 
 # === 5. Generate protobuf sources FIRST (bloop can't run Maven plugins) ===
 #
 # Maven profile notes:
 #   -Pspark-4.1 -Pscala-2.13 -Pbackends-velox -Pdelta -- baseline (matches dev/lib/build-gluten-java.sh)
 #   -Pspark-ut                                        -- required for gluten-ut test compilation
+#                                                        (also pulls extra test JARs via `mvn install` first)
 #   -Pjava-17                                         -- OPTIONAL; auto-activated when JAVA_HOME points to JDK 17
-#   -Prsm                                             -- add for remote-shuffle (RSM) tests, matches build-nee.sh --ci
 #
 # Settings file notes:
 #   ~/.m2/settings.xml             -- default for local dev (matches build-nee.sh local mode)
 #   .pipelines/conf/settings.xml   -- CI settings (matches build-nee.sh --ci)
 cd /root/gluten
 mvn -s ~/.m2/settings.xml generate-sources \
-  -Pspark-4.1,scala-2.13,backends-velox,delta,spark-ut \
+  -Pspark-4.1,scala-2.13,backends-velox,delta \
   -DskipTests -Dspotless.check.skip=true -Dscalastyle.skip=true
 
 # === 6. Generate Bloop config from Maven POM ===
 mvn -s ~/.m2/settings.xml \
   ch.epfl.scala:bloop-maven-plugin:2.0.3:bloopInstall \
-  -Pspark-4.1,scala-2.13,backends-velox,delta,spark-ut \
+  -Pspark-4.1,scala-2.13,backends-velox,delta \
   -DskipTests -Dspotless.check.skip=true -Dscalastyle.skip=true
 
 # === 7. Patch Bloop configs ===
