@@ -88,6 +88,33 @@ let the user accept/override. After confirmation, drop `--dry-run` to submit.
 ### Step 4 - report
 Print each triggered build id, tag, and the `_build/results?buildId=...` URL.
 
+### Recipe - override the pre-deployed Gluten jar with a custom build
+To make the run load a hand-built `gluten-velox-bundle-*.jar` (e.g. a
+`1.6.0-SNAPSHOT`) instead of the runtime's pre-deployed Gluten, upload the jar to
+the lakehouse `Files/` and merge these confs into `additionalConfig`:
+
+```json
+{
+  "spark.jars": "abfss://<ws>@onelake.dfs.fabric.microsoft.com/<lh>.Lakehouse/Files/<jar>",
+  "spark.driver.extraClassPath": "./<jar>",
+  "spark.executor.extraClassPath": "./<jar>",
+  "spark.prependExtraClassPath": "true"
+}
+```
+
+- **`spark.prependExtraClassPath=true` is the key** - it forces `extraClassPath`
+  AHEAD of the runtime's `/opt/spark/component-jars/*` so the custom jar wins
+  (Java is first-match-wins on the YARN container classpath).
+- **Set `useMasterVHD=false`.** With `useMasterVHD=true` the buddy pipeline injects
+  `spark.testing.custom.vhdname` + `spark.fabric.immutableConfs`, pinning compute to
+  a VHD whose pre-baked Gluten shadows the override.
+- **Do NOT use `spark.{driver,executor}.userClassPathFirst=true`.** Child-first
+  classloading breaks Gluten's plugin/JNI native init -> driver `System.exit` at
+  startup (~50s, all AM retries dead, before any query runs).
+- **Verify the override loaded:** check `summary/summary.txt` -> SECTION `JAR
+  VERSIONS` -> `Gluten:` line shows your custom version (e.g. `...-1.6.0-SNAPSHOT`),
+  not the GA build. (Empirically validated on build 221581752.)
+
 ---
 
 ## Part 2 - Download results
