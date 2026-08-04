@@ -1,0 +1,38 @@
+{
+  "name": "copilot-skills",
+  "version": "0.1.0",
+  "description": "A collection of engineering workflow skills packaged for TRAE CLI.",
+  "author": {
+    "name": "liuneng1994",
+    "url": "https://github.com/liuneng1994"
+  },
+  "homepage": "https://github.com/liuneng1994/copilot-skills",
+  "repository": "https://github.com/liuneng1994/copilot-skills",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "trae-cli",
+    "engineering",
+    "workflow"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Copilot Skills",
+    "shortDescription": "Engineering workflow skills packaged for TRAE CLI.",
+    "longDescription": "Copilot Skills bundles practical agent skills for pipeline diagnostics, Scala test workflows, memory management, state-machine design, skill discovery, brainstorming, and OCP performance analysis.",
+    "developerName": "liuneng1994",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write",
+      "Execute"
+    ],
+    "websiteURL": "https://github.com/liuneng1994/copilot-skills",
+    "defaultPrompt": [
+      "Find a skill for this workflow.",
+      "Analyze this ADO pipeline failure.",
+      "Design a production state machine."
+    ],
+    "brandColor": "#2563EB"
+  }
+}

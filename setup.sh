@@ -5,13 +5,14 @@ set -e
 
 COPILOT_HOME="${COPILOT_HOME:-$HOME/.copilot}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SKILLS_DIR="$SCRIPT_DIR/plugins/copilot-skills/skills"
 
 echo "=== Copilot Skills Setup ==="
 
-# 1. Ensure skills dir is linked/cloned correctly
-if [ "$(realpath "$COPILOT_HOME/skills")" != "$(realpath "$SCRIPT_DIR")" ]; then
+# 1. Ensure skills dir is linked correctly
+if [ "$(realpath "$COPILOT_HOME/skills" 2>/dev/null || true)" != "$(realpath "$SKILLS_DIR")" ]; then
     echo "Warning: $COPILOT_HOME/skills does not point to this repo."
-    echo "Consider: ln -sf $SCRIPT_DIR $COPILOT_HOME/skills"
+    echo "Consider: ln -sfn $SKILLS_DIR $COPILOT_HOME/skills"
 fi
 
 # 1b. Link global copilot-instructions.md from this repo
