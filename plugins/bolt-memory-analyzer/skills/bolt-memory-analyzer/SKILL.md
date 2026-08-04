@@ -135,6 +135,30 @@ The Perfetto trace contains exact alloc/free/grow TrackEvents, active-memory
 counter tracks, interned mappings/callstacks, and periodic/peak/final native
 heap snapshots.
 
+## Install Arbitrary-Range Flamegraphs
+
+The stock heap-profile view only opens recorded snapshots. Install the bundled
+`dev.bolt.Memory` UI plugin to compute flamegraphs for any area selection.
+Check the Trace Processor version first and use the matching Perfetto `vX.Y`
+tag; a mismatched UI may redirect to an official build without the Bolt plugin.
+
+```bash
+<trace_processor_shell> --version
+git clone https://github.com/google/perfetto.git /tmp/perfetto
+git -C /tmp/perfetto checkout vX.Y
+python3 <bolt-checkout>/scripts/bolt_memory_perfetto.py install-ui-plugin \
+  --perfetto /tmp/perfetto
+/tmp/perfetto/tools/install-build-deps --ui
+python3 <bolt-checkout>/scripts/bolt_memory_perfetto.py build-ui \
+  --perfetto /tmp/perfetto
+python3 <bolt-checkout>/scripts/bolt_memory_perfetto.py serve-ui \
+  --perfetto /tmp/perfetto
+```
+
+Open `http://localhost:10000`, load the trace, and drag any timeline area.
+Select the `Bolt Memory Flamegraph` tab. It offers live bytes at the range end,
+allocated bytes, allocation count, and byte-seconds overlapping the range.
+
 ## Validate The Bundled Tool
 
 Run:

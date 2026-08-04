@@ -1,7 +1,7 @@
 {
   "name": "bolt-memory-analyzer",
-  "version": "0.2.0",
-  "description": "Instrument Bolt MemoryPool and analyze large traces with Perfetto Trace Processor.",
+  "version": "0.3.0",
+  "description": "Instrument Bolt MemoryPool and analyze arbitrary trace ranges with Perfetto.",
   "author": {
     "name": "liuneng1994",
     "url": "https://github.com/liuneng1994"
@@ -20,7 +20,7 @@
   "interface": {
     "displayName": "Bolt Memory Analyzer",
     "shortDescription": "Trace and diagnose Bolt memory behavior.",
-    "longDescription": "Install high-performance Bolt MemoryPool tracing, convert large captures to standard Perfetto traces, query them with native Trace Processor SQL, inspect timeline and heap flame graphs, and generate model-friendly peak, lifetime, leak, and churn findings.",
+    "longDescription": "Install high-performance Bolt MemoryPool tracing, convert large captures to standard Perfetto traces, query them with native Trace Processor SQL, render interactive flame graphs for arbitrary timeline selections, and generate model-friendly peak, lifetime, leak, and churn findings.",
     "developerName": "liuneng1994",
     "category": "Developer Tools",
     "capabilities": [

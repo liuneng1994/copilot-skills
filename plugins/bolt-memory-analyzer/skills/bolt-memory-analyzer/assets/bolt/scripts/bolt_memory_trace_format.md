@@ -103,7 +103,7 @@ remain readable.
 
 Contains `mapping_id:u32`, `path_size:u32`, `start:u64`, `limit:u64`,
 `file_offset:u64`, followed by UTF-8 path bytes. Executable mappings allow the
-viewer to symbolize raw program counters after capture.
+offline converter to symbolize raw program counters after capture.
 
 ### Configuration (`type=8`)
 
@@ -123,6 +123,6 @@ threads have equal or near-equal timestamps.
 - No work is performed unless `BOLT_MEMORY_TRACE_FILE` is set.
 - Pool names and raw stacks are interned.
 - Allocation-thread stack capture records program counters only.
-- Symbolization happens offline in the viewer.
+- Symbolization happens offline in the Perfetto converter and analyzer.
 - Free events reuse the allocation stack and do not capture another stack.
 - Writes are buffered and checkpoints are periodic.

@@ -616,18 +616,64 @@ def pool_definition_event(
 def stack_definition_event(
     definitions: Definitions,
     stack_id: int,
+    leaf_node_id: int,
 ) -> bytes:
     event = proto_string(22, "bolt.memory.metadata")
     event += proto_string(23, "stack_definition")
     event += proto_uint(9, TRACK_EVENT_INSTANT)
     event += proto_uint(11, metadata_track_uuid(definitions.header))
     event += debug_uint("stack_id", stack_id)
+    event += debug_uint("leaf_node_id", leaf_node_id)
     stack = definitions.symbols.get(stack_id)
     if not stack:
         addresses = definitions.raw_stacks.get(stack_id, [])
         stack = "\n".join(f"0x{address:x}" for address in addresses)
     event += debug_string("stack", stack)
     return event
+
+
+def stack_node_definition_event(
+    definitions: Definitions,
+    node_id: int,
+    parent_id: int,
+    name: str,
+) -> bytes:
+    event = proto_string(22, "bolt.memory.metadata")
+    event += proto_string(23, "stack_node_definition")
+    event += proto_uint(9, TRACK_EVENT_INSTANT)
+    event += proto_uint(11, metadata_track_uuid(definitions.header))
+    event += debug_uint("node_id", node_id)
+    event += debug_uint("parent_id", parent_id)
+    event += debug_string("name", name)
+    return event
+
+
+def stack_node_definitions(
+    definitions: Definitions,
+) -> tuple[list[tuple[int, int, str]], dict[int, int]]:
+    node_ids: dict[tuple[int, str], int] = {}
+    stack_leaf_nodes: dict[int, int] = {0: 1}
+    rows: list[tuple[int, int, str]] = [(1, 0, "(stack unavailable)")]
+    next_node_id = 2
+    for stack_id in sorted(definitions.raw_stacks):
+        frames = symbol_frames(definitions.symbols, stack_id)
+        if not frames:
+            frames = [
+                f"0x{address:x}"
+                for address in reversed(definitions.raw_stacks[stack_id])
+            ]
+        parent_id = 0
+        for frame in reversed(frames):
+            key = (parent_id, frame)
+            node_id = node_ids.get(key)
+            if node_id is None:
+                node_id = next_node_id
+                next_node_id += 1
+                node_ids[key] = node_id
+                rows.append((node_id, parent_id, frame))
+            parent_id = node_id
+        stack_leaf_nodes[stack_id] = parent_id
+    return rows, stack_leaf_nodes
 
 
 def profile_packet(
@@ -705,6 +751,7 @@ def convert(
 ) -> dict[str, int]:
     definitions = collect_definitions(input_path, symbolize)
     interning = PerfettoInterning(definitions)
+    stack_nodes, stack_leaf_nodes = stack_node_definitions(definitions)
     emitted_stacks: set[int] = set()
     active: dict[int, int] = {}
     active_bytes = 0
@@ -719,6 +766,21 @@ def convert(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("wb") as output:
         write_initial_packets(output, definitions, interning)
+        for node_id, parent_id, name in stack_nodes:
+            write_packet(
+                output,
+                packet_fields(
+                    timestamp_ns=definitions.header.monotonic_start_ns,
+                    data_field=11,
+                    data=stack_node_definition_event(
+                        definitions,
+                        node_id,
+                        parent_id,
+                        name,
+                    ),
+                    sequence_flags=2,
+                ),
+            )
         with input_path.open("rb") as source:
             read_header(source, input_path)
             for record_type, payload in records(source, input_path):
@@ -759,6 +821,7 @@ def convert(
                             data=stack_definition_event(
                                 definitions,
                                 stack_id,
+                                stack_leaf_nodes.get(stack_id, 0),
                             ),
                             sequence_flags=2,
                         ),
@@ -1284,6 +1347,15 @@ def parse_args() -> argparse.Namespace:
     serve_parser.add_argument("--trace-processor", type=Path)
     serve_parser.add_argument("--port", type=int, default=9001)
     serve_parser.add_argument("--ip-address", default="127.0.0.1")
+    serve_parser.add_argument(
+        "--cors-origin",
+        action="append",
+        default=[
+            "http://localhost:10000",
+            "http://127.0.0.1:10000",
+        ],
+        help="Additional browser origin allowed by Trace Processor",
+    )
 
     install_parser = subparsers.add_parser("install-trace-processor")
     install_parser.add_argument(
@@ -1291,6 +1363,16 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=Path.home() / ".cache" / "bolt-memory-perfetto",
     )
+
+    ui_install_parser = subparsers.add_parser("install-ui-plugin")
+    ui_install_parser.add_argument("--perfetto", required=True, type=Path)
+    ui_install_parser.add_argument("--force", action="store_true")
+
+    ui_build_parser = subparsers.add_parser("build-ui")
+    ui_build_parser.add_argument("--perfetto", required=True, type=Path)
+
+    ui_serve_parser = subparsers.add_parser("serve-ui")
+    ui_serve_parser.add_argument("--perfetto", required=True, type=Path)
     return parser.parse_args()
 
 
@@ -1380,26 +1462,59 @@ def main() -> int:
         if args.command == "serve":
             executable = find_trace_processor(args.trace_processor)
             print(
-                "Trace Processor is serving the loaded trace. Open "
-                "https://ui.perfetto.dev and connect to the local accelerator "
+                "Trace Processor is serving the loaded trace. Open the local "
+                "Perfetto UI or https://ui.perfetto.dev and connect "
                 f"at http://{args.ip_address}:{args.port}."
             )
-            return subprocess.run(
-                [
-                    str(executable),
-                    "server",
-                    "http",
-                    "--port",
-                    str(args.port),
-                    "--ip-address",
-                    args.ip_address,
-                    str(args.trace),
-                ]
-            ).returncode
+            command = [
+                str(executable),
+                "server",
+                "http",
+                "--port",
+                str(args.port),
+                "--ip-address",
+                args.ip_address,
+            ]
+            if args.cors_origin:
+                command.extend(
+                    [
+                        "--additional-cors-origins",
+                        ",".join(args.cors_origin),
+                    ]
+                )
+            command.append(str(args.trace))
+            return subprocess.run(command).returncode
         if args.command == "install-trace-processor":
             wrapper = download_trace_processor(args.cache_dir)
             print(wrapper)
             return 0
+        if args.command == "install-ui-plugin":
+            installer = (
+                Path(__file__).resolve().parent
+                / "install_bolt_perfetto_ui.py"
+            )
+            argv = [
+                sys.executable,
+                str(installer),
+                "--perfetto",
+                str(args.perfetto),
+            ]
+            if args.force:
+                argv.append("--force")
+            return subprocess.run(argv).returncode
+        if args.command == "build-ui":
+            repo = args.perfetto.resolve()
+            return subprocess.run(
+                [str(repo / "ui" / "build")],
+                cwd=repo,
+            ).returncode
+        if args.command == "serve-ui":
+            repo = args.perfetto.resolve()
+            print("Open http://localhost:10000 and load the Perfetto trace.")
+            return subprocess.run(
+                [str(repo / "ui" / "run-dev-server")],
+                cwd=repo,
+            ).returncode
     except (OSError, ValueError, subprocess.SubprocessError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2

@@ -20,8 +20,12 @@ EXPECTED_FILES = [
     "scripts/bolt_memory_perfetto.py",
     "scripts/bolt_memory_trace_core.py",
     "scripts/bolt_memory_trace_format.md",
+    "scripts/install_bolt_perfetto_ui.py",
     "scripts/perfetto/bolt_memory.sql",
+    "scripts/perfetto/ui_plugin/dev.bolt.Memory/index.ts",
+    "scripts/perfetto/ui_plugin/dev.bolt.Memory/sql.ts",
     "scripts/tests/test_bolt_memory_analyze.py",
+    "scripts/tests/test_install_bolt_perfetto_ui.py",
 ]
 
 
@@ -87,6 +91,7 @@ def main() -> int:
             repo / "scripts/bolt_memory_analyze.py",
             repo / "scripts/bolt_memory_perfetto.py",
             repo / "scripts/bolt_memory_trace_core.py",
+            repo / "scripts/install_bolt_perfetto_ui.py",
         ):
             py_compile.compile(
                 str(script),

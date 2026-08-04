@@ -37,11 +37,27 @@ WHERE t.name = 'Bolt MemoryPool events';
 CREATE PERFETTO VIEW bolt_memory_stack AS
 SELECT
   CAST(EXTRACT_ARG(s.arg_set_id, 'debug.stack_id') AS INT) AS stack_id,
+  CAST(EXTRACT_ARG(s.arg_set_id, 'debug.leaf_node_id') AS INT)
+      AS leaf_node_id,
   EXTRACT_ARG(s.arg_set_id, 'debug.stack') AS stack
 FROM slice s
 JOIN track t ON s.track_id = t.id
 WHERE t.name = 'Bolt MemoryPool metadata'
   AND s.name = 'stack_definition';
+
+CREATE PERFETTO VIEW bolt_memory_stack_node AS
+SELECT
+  CAST(EXTRACT_ARG(s.arg_set_id, 'debug.node_id') AS INT) AS id,
+  CASE
+    WHEN CAST(EXTRACT_ARG(s.arg_set_id, 'debug.parent_id') AS INT) = 0
+      THEN NULL
+    ELSE CAST(EXTRACT_ARG(s.arg_set_id, 'debug.parent_id') AS INT)
+  END AS parent_id,
+  EXTRACT_ARG(s.arg_set_id, 'debug.name') AS name
+FROM slice s
+JOIN track t ON s.track_id = t.id
+WHERE t.name = 'Bolt MemoryPool metadata'
+  AND s.name = 'stack_node_definition';
 
 CREATE PERFETTO VIEW bolt_memory_state_interval AS
 SELECT *

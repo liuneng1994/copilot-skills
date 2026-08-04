@@ -308,6 +308,185 @@ class MemoryAnalyzeTest(unittest.TestCase):
             report["peak"]["pool_coverage"]["bytes"],
         )
 
+    def test_perfetto_area_metrics_for_arbitrary_range(self):
+        trace_processor = os.environ.get("TRACE_PROCESSOR")
+        if trace_processor is None:
+            trace_processor = shutil.which("trace_processor_shell")
+        if trace_processor is None:
+            self.skipTest("TRACE_PROCESSOR is not available")
+
+        with tempfile.TemporaryDirectory() as directory:
+            trace = Path(directory) / "trace.bin"
+            perfetto_trace = Path(directory) / "trace.perfetto-trace"
+            synthetic_trace(trace)
+            perfetto_analyzer.convert(
+                trace,
+                perfetto_trace,
+                symbolize=False,
+                snapshot_events=10,
+            )
+            rows = perfetto_analyzer.query_rows(
+                perfetto_trace,
+                Path(trace_processor),
+                """
+                WITH
+                bounds AS (
+                  SELECT
+                    trace_start() + (trace_end() - trace_start()) / 4
+                        AS range_start,
+                    trace_start() + (trace_end() - trace_start()) * 3 / 4
+                        AS range_end
+                ),
+                event_values AS (
+                  SELECT
+                    stack_id,
+                    SUM(CASE
+                      WHEN op = 'alloc' THEN size
+                      WHEN op = 'grow' THEN MAX(size - old_size, 0)
+                      ELSE 0
+                    END) AS allocated_bytes,
+                    SUM(CASE
+                      WHEN op = 'alloc' THEN 1
+                      WHEN op = 'grow' AND size > old_size THEN 1
+                      ELSE 0
+                    END) AS allocation_count
+                  FROM bolt_memory_event, bounds
+                  WHERE ts >= range_start AND ts < range_end
+                  GROUP BY stack_id
+                ),
+                state_values AS (
+                  SELECT
+                    state.stack_id,
+                    SUM(CASE
+                      WHEN state.start_ts <= bounds.range_end
+                        AND (
+                          state.end_ts IS NULL
+                          OR state.end_ts > bounds.range_end
+                        )
+                      THEN state.size
+                      ELSE 0
+                    END) AS live_end_bytes,
+                    SUM(
+                      CAST(state.size AS REAL) *
+                      MAX(
+                        0,
+                        MIN(
+                          COALESCE(state.end_ts, bounds.range_end),
+                          bounds.range_end
+                        ) - MAX(state.start_ts, bounds.range_start)
+                      ) / 1000000000.0
+                    ) AS byte_seconds
+                  FROM bolt_memory_state_interval state, bounds
+                  WHERE state.start_ts < bounds.range_end
+                    AND (
+                      state.end_ts IS NULL
+                      OR state.end_ts > bounds.range_start
+                    )
+                  GROUP BY state.stack_id
+                ),
+                stack_ids AS (
+                  SELECT stack_id FROM event_values
+                  UNION
+                  SELECT stack_id FROM state_values
+                ),
+                metrics AS (
+                  SELECT
+                    stack_ids.stack_id,
+                    COALESCE(event_values.allocated_bytes, 0)
+                        AS allocated_bytes,
+                    COALESCE(event_values.allocation_count, 0)
+                        AS allocation_count,
+                    COALESCE(state_values.live_end_bytes, 0)
+                        AS live_end_bytes,
+                    COALESCE(state_values.byte_seconds, 0)
+                        AS byte_seconds
+                  FROM stack_ids
+                  LEFT JOIN event_values USING (stack_id)
+                  LEFT JOIN state_values USING (stack_id)
+                )
+                SELECT
+                  COUNT(*) AS stacks,
+                  SUM(allocated_bytes) AS allocated_bytes,
+                  SUM(allocation_count) AS allocation_count,
+                  SUM(live_end_bytes) AS live_end_bytes,
+                  ROUND(SUM(byte_seconds), 6) AS byte_seconds
+                FROM metrics;
+                """,
+            )[0]
+
+        self.assertGreater(int(rows["stacks"]), 0)
+        self.assertGreater(int(rows["allocated_bytes"]), 0)
+        self.assertGreater(int(rows["allocation_count"]), 0)
+        self.assertGreaterEqual(int(rows["live_end_bytes"]), 0)
+        self.assertGreater(float(rows["byte_seconds"]), 0)
+
+    def test_perfetto_stack_trie_covers_all_stacks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            trace = Path(directory) / "trace.bin"
+            synthetic_trace(trace)
+            definitions = perfetto_analyzer.collect_definitions(
+                trace,
+                symbolize=False,
+            )
+            nodes, leaves = perfetto_analyzer.stack_node_definitions(
+                definitions
+            )
+
+        node_ids = {row[0] for row in nodes}
+        self.assertIn(1, node_ids)
+        self.assertEqual(set(leaves), {0, 1})
+        self.assertTrue(all(leaf in node_ids for leaf in leaves.values()))
+        self.assertTrue(
+            all(parent == 0 or parent in node_ids for _, parent, _ in nodes)
+        )
+
+    def test_perfetto_flamegraph_accepts_stack_node_types(self):
+        trace_processor = os.environ.get("TRACE_PROCESSOR")
+        if trace_processor is None:
+            trace_processor = shutil.which("trace_processor_shell")
+        if trace_processor is None:
+            self.skipTest("TRACE_PROCESSOR is not available")
+
+        with tempfile.TemporaryDirectory() as directory:
+            trace = Path(directory) / "trace.bin"
+            perfetto_trace = Path(directory) / "trace.perfetto-trace"
+            synthetic_trace(trace)
+            perfetto_analyzer.convert(
+                trace,
+                perfetto_trace,
+                symbolize=False,
+                snapshot_events=10,
+            )
+            rows = perfetto_analyzer.query_rows(
+                perfetto_trace,
+                Path(trace_processor),
+                """
+                INCLUDE PERFETTO MODULE viz.flamegraph;
+                CREATE PERFETTO TABLE bolt_flamegraph_test AS
+                SELECT
+                  CAST(id AS INT) AS id,
+                  CAST(parent_id AS INT) AS parentId,
+                  printf('%s', name) AS name,
+                  CAST(1 AS INT) AS value,
+                  '' AS groupingColumn,
+                  '' AS groupedColumn
+                FROM bolt_memory_stack_node;
+                SELECT COUNT(*) AS nodes
+                FROM _viz_flamegraph_prepare_filter!(
+                  bolt_flamegraph_test,
+                  (0),
+                  (false),
+                  (0),
+                  (false),
+                  (0),
+                  1,
+                  (groupingColumn)
+                );
+                """,
+            )[0]
+
+        self.assertGreater(int(rows["nodes"]), 0)
+
 
 if __name__ == "__main__":
     unittest.main()
