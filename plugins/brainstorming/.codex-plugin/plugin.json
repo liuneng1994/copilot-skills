@@ -1,0 +1,37 @@
+{
+  "name": "brainstorming",
+  "version": "0.1.0",
+  "description": "Explore user intent, requirements, and design before implementation work.",
+  "author": {
+    "name": "liuneng1994",
+    "url": "https://github.com/liuneng1994"
+  },
+  "homepage": "https://github.com/liuneng1994/copilot-skills",
+  "repository": "https://github.com/liuneng1994/copilot-skills",
+  "license": "MIT",
+  "keywords": [
+    "brainstorming",
+    "design",
+    "spec",
+    "planning"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Brainstorming",
+    "shortDescription": "Turn rough ideas into implementation-ready designs.",
+    "longDescription": "Guide creative and product work through context gathering, clarifying questions, approach tradeoffs, design approval, and specification review.",
+    "developerName": "liuneng1994",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/liuneng1994/copilot-skills",
+    "defaultPrompt": [
+      "Help me design this feature.",
+      "Turn this idea into a spec.",
+      "Compare approaches for this change."
+    ],
+    "brandColor": "#7C3AED"
+  }
+}

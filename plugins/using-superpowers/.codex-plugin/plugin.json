@@ -1,0 +1,36 @@
+{
+  "name": "using-superpowers",
+  "version": "0.1.0",
+  "description": "Establish how to find and use skills at the start of a conversation.",
+  "author": {
+    "name": "liuneng1994",
+    "url": "https://github.com/liuneng1994"
+  },
+  "homepage": "https://github.com/liuneng1994/copilot-skills",
+  "repository": "https://github.com/liuneng1994/copilot-skills",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "workflow",
+    "agent",
+    "instructions"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Using Superpowers",
+    "shortDescription": "Route work through applicable skills.",
+    "longDescription": "Establish a skill-first workflow for agent sessions, including skill discovery and invocation rules.",
+    "developerName": "liuneng1994",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read"
+    ],
+    "websiteURL": "https://github.com/liuneng1994/copilot-skills",
+    "defaultPrompt": [
+      "Start this conversation with skills.",
+      "Check which skill applies.",
+      "Use the right skill workflow."
+    ],
+    "brandColor": "#4F46E5"
+  }
+}

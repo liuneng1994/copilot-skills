@@ -1,0 +1,37 @@
+{
+  "name": "ocp-perf",
+  "version": "0.1.0",
+  "description": "Trigger, download, and analyze Spark Fabric OneClick Performance runs.",
+  "author": {
+    "name": "liuneng1994",
+    "url": "https://github.com/liuneng1994"
+  },
+  "homepage": "https://github.com/liuneng1994/copilot-skills",
+  "repository": "https://github.com/liuneng1994/copilot-skills",
+  "license": "MIT",
+  "keywords": [
+    "ocp",
+    "spark",
+    "performance",
+    "benchmark"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "OCP Perf",
+    "shortDescription": "Run and compare OCP performance tests.",
+    "longDescription": "Trigger Spark Fabric OneClick Performance runs, download perf-result artifacts, and compare native, baseline, Scala, or Java configurations.",
+    "developerName": "liuneng1994",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Execute"
+    ],
+    "websiteURL": "https://github.com/liuneng1994/copilot-skills",
+    "defaultPrompt": [
+      "Trigger an OCP perf run.",
+      "Compare these OCP perf results.",
+      "Download perf-results artifacts."
+    ],
+    "brandColor": "#0891B2"
+  }
+}

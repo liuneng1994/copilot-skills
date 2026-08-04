@@ -1,0 +1,37 @@
+{
+  "name": "copilot-memory",
+  "version": "0.1.0",
+  "description": "Read and maintain layered memory for multi-session coding tasks.",
+  "author": {
+    "name": "liuneng1994",
+    "url": "https://github.com/liuneng1994"
+  },
+  "homepage": "https://github.com/liuneng1994/copilot-skills",
+  "repository": "https://github.com/liuneng1994/copilot-skills",
+  "license": "MIT",
+  "keywords": [
+    "memory",
+    "context",
+    "coding",
+    "workflow"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Copilot Memory",
+    "shortDescription": "Maintain layered memory across coding sessions.",
+    "longDescription": "Read and write structured task, repository, user, and reflection memory for multi-session coding workflows.",
+    "developerName": "liuneng1994",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/liuneng1994/copilot-skills",
+    "defaultPrompt": [
+      "Read memory before planning.",
+      "Save this repo lesson to memory.",
+      "Summarize relevant task context."
+    ],
+    "brandColor": "#0F766E"
+  }
+}

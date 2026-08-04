@@ -1,0 +1,37 @@
+{
+  "name": "find-skills",
+  "version": "0.1.0",
+  "description": "Discover and install agent skills for specialized workflows.",
+  "author": {
+    "name": "liuneng1994",
+    "url": "https://github.com/liuneng1994"
+  },
+  "homepage": "https://github.com/liuneng1994/copilot-skills",
+  "repository": "https://github.com/liuneng1994/copilot-skills",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "discovery",
+    "install",
+    "marketplace"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Find Skills",
+    "shortDescription": "Find and install relevant agent skills.",
+    "longDescription": "Help users discover installable skills for specialized tasks and understand the skills ecosystem.",
+    "developerName": "liuneng1994",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Execute"
+    ],
+    "websiteURL": "https://github.com/liuneng1994/copilot-skills",
+    "defaultPrompt": [
+      "Find a skill for this task.",
+      "Is there a skill that can do this?",
+      "Install a skill for this workflow."
+    ],
+    "brandColor": "#EA580C"
+  }
+}

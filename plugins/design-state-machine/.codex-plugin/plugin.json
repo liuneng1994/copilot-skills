@@ -1,0 +1,37 @@
+{
+  "name": "design-state-machine",
+  "version": "0.1.0",
+  "description": "Design production-quality state machines using proven C++ FSM patterns.",
+  "author": {
+    "name": "liuneng1994",
+    "url": "https://github.com/liuneng1994"
+  },
+  "homepage": "https://github.com/liuneng1994/copilot-skills",
+  "repository": "https://github.com/liuneng1994/copilot-skills",
+  "license": "MIT",
+  "keywords": [
+    "state-machine",
+    "fsm",
+    "cpp",
+    "design"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Design State Machine",
+    "shortDescription": "Design C++ finite state machines.",
+    "longDescription": "Choose and scaffold production-quality finite state machine patterns based on proven ClickHouse-inspired implementations.",
+    "developerName": "liuneng1994",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/liuneng1994/copilot-skills",
+    "defaultPrompt": [
+      "Design a state machine for this flow.",
+      "Pick an FSM pattern for this lifecycle.",
+      "Generate C++ FSM scaffolding."
+    ],
+    "brandColor": "#DC2626"
+  }
+}

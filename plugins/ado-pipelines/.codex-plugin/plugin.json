@@ -1,0 +1,37 @@
+{
+  "name": "ado-pipelines",
+  "version": "0.1.0",
+  "description": "Query Azure DevOps pipeline build status, diagnose failures, and trigger new pipeline runs.",
+  "author": {
+    "name": "liuneng1994",
+    "url": "https://github.com/liuneng1994"
+  },
+  "homepage": "https://github.com/liuneng1994/copilot-skills",
+  "repository": "https://github.com/liuneng1994/copilot-skills",
+  "license": "MIT",
+  "keywords": [
+    "ado",
+    "pipelines",
+    "ci",
+    "devops"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "ADO Pipelines",
+    "shortDescription": "Analyze and trigger Azure DevOps pipelines.",
+    "longDescription": "Query Azure DevOps pipeline build status, diagnose failed tasks, fetch logs, and trigger new pipeline runs.",
+    "developerName": "liuneng1994",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Execute"
+    ],
+    "websiteURL": "https://github.com/liuneng1994/copilot-skills",
+    "defaultPrompt": [
+      "Analyze this ADO build failure.",
+      "Check this pipeline status.",
+      "Trigger a pipeline run."
+    ],
+    "brandColor": "#2563EB"
+  }
+}

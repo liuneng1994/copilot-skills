@@ -5,16 +5,100 @@
   },
   "plugins": [
     {
-      "name": "copilot-skills",
+      "name": "ado-pipelines",
       "source": {
         "source": "local",
-        "path": "./plugins/copilot-skills"
+        "path": "./plugins/ado-pipelines"
       },
       "policy": {
         "installation": "AVAILABLE",
         "authentication": "ON_INSTALL"
       },
-      "category": "Productivity"
+      "category": "Developer Tools"
+    },
+    {
+      "name": "bloop-test",
+      "source": {
+        "source": "local",
+        "path": "./plugins/bloop-test"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    },
+    {
+      "name": "brainstorming",
+      "source": {
+        "source": "local",
+        "path": "./plugins/brainstorming"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    },
+    {
+      "name": "copilot-memory",
+      "source": {
+        "source": "local",
+        "path": "./plugins/copilot-memory"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    },
+    {
+      "name": "design-state-machine",
+      "source": {
+        "source": "local",
+        "path": "./plugins/design-state-machine"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    },
+    {
+      "name": "find-skills",
+      "source": {
+        "source": "local",
+        "path": "./plugins/find-skills"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    },
+    {
+      "name": "ocp-perf",
+      "source": {
+        "source": "local",
+        "path": "./plugins/ocp-perf"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    },
+    {
+      "name": "using-superpowers",
+      "source": {
+        "source": "local",
+        "path": "./plugins/using-superpowers"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
     }
   ]
 }

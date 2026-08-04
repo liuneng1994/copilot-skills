@@ -5,15 +5,26 @@ set -e
 
 COPILOT_HOME="${COPILOT_HOME:-$HOME/.copilot}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SKILLS_DIR="$SCRIPT_DIR/plugins/copilot-skills/skills"
+SKILLS_DIR="$COPILOT_HOME/skills"
 
 echo "=== Copilot Skills Setup ==="
 
-# 1. Ensure skills dir is linked correctly
-if [ "$(realpath "$COPILOT_HOME/skills" 2>/dev/null || true)" != "$(realpath "$SKILLS_DIR")" ]; then
-    echo "Warning: $COPILOT_HOME/skills does not point to this repo."
-    echo "Consider: ln -sfn $SKILLS_DIR $COPILOT_HOME/skills"
-fi
+# 1. Link each packaged skill into the legacy Copilot skills directory
+mkdir -p "$SKILLS_DIR"
+for plugin_dir in "$SCRIPT_DIR"/plugins/*; do
+    [ -d "$plugin_dir/skills" ] || continue
+    for skill_dir in "$plugin_dir"/skills/*; do
+        [ -d "$skill_dir" ] || continue
+        skill_name="$(basename "$skill_dir")"
+        skill_link="$SKILLS_DIR/$skill_name"
+        if [ -e "$skill_link" ] && [ ! -L "$skill_link" ]; then
+            echo "Backing up existing $skill_link to $skill_link.bak"
+            mv "$skill_link" "$skill_link.bak"
+        fi
+        ln -sfn "$skill_dir" "$skill_link"
+        echo "Linked $skill_link -> $skill_dir"
+    done
+done
 
 # 1b. Link global copilot-instructions.md from this repo
 INSTRUCTIONS_SRC="$SCRIPT_DIR/copilot-instructions.md"

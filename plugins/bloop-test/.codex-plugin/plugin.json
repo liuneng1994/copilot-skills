@@ -1,0 +1,37 @@
+{
+  "name": "bloop-test",
+  "version": "0.1.0",
+  "description": "Run Scala tests using Bloop build server for fast incremental compilation.",
+  "author": {
+    "name": "liuneng1994",
+    "url": "https://github.com/liuneng1994"
+  },
+  "homepage": "https://github.com/liuneng1994/copilot-skills",
+  "repository": "https://github.com/liuneng1994/copilot-skills",
+  "license": "MIT",
+  "keywords": [
+    "scala",
+    "bloop",
+    "tests",
+    "spark"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Bloop Test",
+    "shortDescription": "Run Scala and Spark tests with Bloop.",
+    "longDescription": "Set up Bloop and run Scala or Spark test suites with fast incremental compilation workflows.",
+    "developerName": "liuneng1994",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Execute"
+    ],
+    "websiteURL": "https://github.com/liuneng1994/copilot-skills",
+    "defaultPrompt": [
+      "Run this Scala test with Bloop.",
+      "Set up Bloop for this repo.",
+      "Debug this Bloop test failure."
+    ],
+    "brandColor": "#16A34A"
+  }
+}
