@@ -1,0 +1,242 @@
+diff --git a/bolt/common/memory/CMakeLists.txt b/bolt/common/memory/CMakeLists.txt
+index bb085ebcad..6e454ee0d2 100644
+--- a/bolt/common/memory/CMakeLists.txt
++++ b/bolt/common/memory/CMakeLists.txt
+@@ -45,6 +45,7 @@ bolt_add_library(
+   MemoryArbitrator.cpp
+   MemoryPool.cpp
+   MemoryPoolForGluten.cpp
++  MemoryTraceRecorder.cpp
+   MemoryUtils.cpp
+   MmapAllocator.cpp
+   MmapArena.cpp
+diff --git a/bolt/common/memory/MemoryPool.cpp b/bolt/common/memory/MemoryPool.cpp
+index 4e3a068bf9..098a95d5fd 100644
+--- a/bolt/common/memory/MemoryPool.cpp
++++ b/bolt/common/memory/MemoryPool.cpp
+@@ -41,6 +41,7 @@
+ #include "bolt/common/base/StatsReporter.h"
+ #include "bolt/common/base/SuccinctPrinter.h"
+ #include "bolt/common/memory/Memory.h"
++#include "bolt/common/memory/MemoryTraceRecorder.h"
+ #include "bolt/common/memory/MemoryUtils.h"
+ #include "bolt/common/memory/sparksql/OomPrinter.h"
+ #include "bolt/common/process/StackTrace.h"
+@@ -174,6 +175,64 @@ std::string capacityToString(int64_t capacity) {
+   return capacity == kMaxMemory ? "UNLIMITED" : succinctBytes(capacity);
+ }
+
++void traceRecordAlloc(
++    const std::string& poolName,
++    const void* addr,
++    int64_t size) {
++  MemoryTraceRecorder::recordAlloc(poolName, addr, size);
++}
++
++void traceRecordAlloc(
++    const std::string& poolName,
++    const Allocation& allocation) {
++  if (allocation.empty()) {
++    return;
++  }
++  for (int i = 0; i < allocation.numRuns(); i++) {
++    const auto run = allocation.runAt(i);
++    MemoryTraceRecorder::recordAlloc(poolName, run.data(), run.numBytes());
++  }
++}
++
++void traceRecordAlloc(
++    const std::string& poolName,
++    const ContiguousAllocation& allocation) {
++  if (allocation.empty()) {
++    return;
++  }
++  MemoryTraceRecorder::recordAlloc(
++      poolName, allocation.data(), allocation.size());
++}
++
++void traceRecordFree(
++    const std::string& poolName,
++    const void* addr,
++    int64_t size) {
++  MemoryTraceRecorder::recordFree(poolName, addr, size);
++}
++
++void traceRecordFree(
++    const std::string& poolName,
++    const Allocation& allocation) {
++  if (allocation.empty()) {
++    return;
++  }
++  for (int i = 0; i < allocation.numRuns(); i++) {
++    const auto run = allocation.runAt(i);
++    MemoryTraceRecorder::recordFree(poolName, run.data(), run.numBytes());
++  }
++}
++
++void traceRecordFree(
++    const std::string& poolName,
++    const ContiguousAllocation& allocation) {
++  if (allocation.empty()) {
++    return;
++  }
++  MemoryTraceRecorder::recordFree(
++      poolName, allocation.data(), allocation.size());
++}
++
+ #define DEBUG_RECORD_ALLOC(pool, ...)         \
+   if (FOLLY_UNLIKELY(pool->debugEnabled())) { \
+     pool->recordAllocDbg(__VA_ARGS__);        \
+@@ -186,11 +245,28 @@ std::string capacityToString(int64_t capacity) {
+   if (FOLLY_UNLIKELY(debugEnabled())) { \
+     leakCheckDbg();                     \
+   }
++#define TRACE_RECORD_ALLOC(...)                         \
++  if (FOLLY_UNLIKELY(MemoryTraceRecorder::enabled())) { \
++    traceRecordAlloc(name_, __VA_ARGS__);               \
++  }
++#define TRACE_RECORD_ALLOC_SPEC(pool, ...)              \
++  if (FOLLY_UNLIKELY(MemoryTraceRecorder::enabled())) { \
++    traceRecordAlloc(pool->name_, __VA_ARGS__);         \
++  }
++#define TRACE_RECORD_FREE(...)                          \
++  if (FOLLY_UNLIKELY(MemoryTraceRecorder::enabled())) { \
++    traceRecordFree(name_, __VA_ARGS__);                \
++  }
++#define TRACE_RECORD_GROW(...)                           \
++  if (FOLLY_UNLIKELY(MemoryTraceRecorder::enabled())) {  \
++    MemoryTraceRecorder::recordGrow(name_, __VA_ARGS__); \
++  }
+ #define RECORD_ALLOC(...)                 \
+   {                                       \
+     if (FOLLY_UNLIKELY(debugEnabled())) { \
+       recordAllocDbg(__VA_ARGS__);        \
+     }                                     \
++    TRACE_RECORD_ALLOC(__VA_ARGS__)       \
+     listener_->recordAlloc(__VA_ARGS__);  \
+   }
+ #define RECORD_ALLOC_SPEC(pool, ...)               \
+@@ -198,6 +274,7 @@ std::string capacityToString(int64_t capacity) {
+     if (FOLLY_UNLIKELY(pool->debugEnabled())) {    \
+       pool->recordAllocDbg(__VA_ARGS__);           \
+     }                                              \
++    TRACE_RECORD_ALLOC_SPEC(pool, __VA_ARGS__)     \
+     pool->getListener()->recordAlloc(__VA_ARGS__); \
+   }
+ #define RECORD_FREE(...)                  \
+@@ -205,6 +282,7 @@ std::string capacityToString(int64_t capacity) {
+     if (FOLLY_UNLIKELY(debugEnabled())) { \
+       recordFreeDbg(__VA_ARGS__);         \
+     }                                     \
++    TRACE_RECORD_FREE(__VA_ARGS__)        \
+     listener_->recordFree(__VA_ARGS__);   \
+   }
+ #define RECORD_GROW(...)                  \
+@@ -212,6 +290,7 @@ std::string capacityToString(int64_t capacity) {
+     if (FOLLY_UNLIKELY(debugEnabled())) { \
+       recordGrowDbg(__VA_ARGS__);         \
+     }                                     \
++    TRACE_RECORD_GROW(__VA_ARGS__)        \
+     listener_->recordGrow(__VA_ARGS__);   \
+   }
+ #define LEAK_CHECK()                      \
+diff --git a/scripts/README.md b/scripts/README.md
+index 9516756750..0c3d17baea 100644
+--- a/scripts/README.md
++++ b/scripts/README.md
+@@ -8,6 +8,8 @@ Developer tooling for the Bolt repo.
+ | `install-bolt-deps.sh` | Pulls Bolt's pinned Conan deps into the local Conan cache. |
+ | `install-gcc.sh` | Installs the GCC toolchain Bolt builds against (root required). |
+ | `run-clang-tidy.py` | Runs clang-tidy on changed lines only; used by pre-commit + CI. |
++| `bolt_memory_trace_viewer.py` | Builds an offline interactive HTML report from Bolt memory trace binary v2 files. |
++| `bolt_memory_analyze.py` | Emits bounded JSON findings for automated and model-driven memory diagnosis. |
+ | `launch-spark.sh` | One-click Spark + Gluten + Bolt launcher with a long-lived Connect Server. |
+ | `launch-spark/connect.py` | pyspark Connect client used by `launch-spark.sh sql` / `shell`. |
+ | `launch-spark/test-queries.sql` | Smoke-test SQL covering scan/agg/join paths for Bolt offload verification. |
+@@ -35,6 +37,86 @@ scripts/launch-spark.sh shell                            # Python REPL
+
+ See `scripts/launch-spark.sh --help` for env vars (ports, JAVA_HOME, etc.).
+
++## Memory pool tracing
++
++Set `BOLT_MEMORY_TRACE_FILE` on any Bolt binary to record memory-pool allocation
++events. The trace is off by default and records only when this variable is
++present. The output is a versioned binary stream with interned pools, raw
++call stacks, executable mappings, periodic checkpoints, capture statistics,
++and a clean-shutdown trailer.
++
++```bash
++BOLT_MEMORY_TRACE_FILE=/tmp/bolt-memory.bin \
++  ./_build/Release/bolt/dwio/parquet/tests/reader/bolt_dwio_parquet_table_scan_test \
++  --gtest_filter=ParquetTableScanTest.basic
++
++python3 scripts/bolt_memory_trace_viewer.py \
++  /tmp/bolt-memory.bin \
++  -o /tmp/bolt-memory.html
++```
++
++Useful optional controls:
++
++```bash
++BOLT_MEMORY_TRACE_POOL_REGEX='.*Aggregation.*'  # only matching pool names
++BOLT_MEMORY_TRACE_STACKS=0                      # disable stack capture
++BOLT_MEMORY_TRACE_STACK_MIN_BYTES=4096          # stacks only above threshold
++BOLT_MEMORY_TRACE_BUFFER_BYTES=1048576           # batched write buffer
++BOLT_MEMORY_TRACE_CHECKPOINT_EVENTS=65536        # checkpoint interval
++```
++
++Stacks are captured as raw program counters on the allocation thread. The
++viewer resolves them offline with `addr2line` using executable mappings stored
++in the trace. This keeps symbolization out of the allocation hot path. If the
++matching binaries are unavailable, frames fall back to `module+offset`.
++
++The generated HTML is self-contained and can be opened offline. It shows the
++full-period memory usage timeline, pool distribution, allocation call sites,
++allocation lifetimes, live allocations at process end, and unmatched frees. The
++allocation flame graph uses vendored `d3` and `d3-flame-graph` assets under
++`scripts/vendor/`; they are embedded into the output HTML so hover details,
++search highlighting, and click-to-zoom work without a network connection. Click
++the timeline to rebuild the flame graph for live allocations at that point, or
++drag a time range to rebuild it from allocations overlapping the selected window.
++
++See `scripts/bolt_memory_trace_format.md` for the binary protocol.
++
++### Model-oriented analysis
++
++Use `bolt_memory_analyze.py` when an automated agent needs conclusions and
++bounded evidence instead of the complete event stream:
++
++```bash
++python3 scripts/bolt_memory_analyze.py /tmp/bolt-memory.bin \
++  --format json \
++  --top 5 \
++  --max-frames 8
++```
++
++The compact JSON output has a stable `schema_version` and includes:
++
++- an overall severity and confidence;
++- peak-live and pre-peak growth attribution by pool and stack;
++- post-peak release timing;
++- lifetime percentiles and suspicious long-lived allocations;
++- live-at-end allocations, unmatched lifecycle events, allocation churn, and
++  trace integrity findings;
++- bounded evidence and recommended next actions for every finding.
++
++The default exit code is zero after a successful analysis, regardless of
++findings. CI can opt into policy enforcement:
++
++```bash
++python3 scripts/bolt_memory_analyze.py /tmp/bolt-memory.bin \
++  --fail-on warning
++```
++
++Thresholds are explicit CLI flags. Common tuning options are
++`--long-lived-ms`, `--long-lived-ratio`, `--long-lived-min-bytes`,
++`--short-lived-ms`, `--short-lived-byte-ratio`, `--churn-ratio`, and
++`--peak-concentration`. Use `--format pretty-json` for manual inspection and
++`--format text` for a short terminal summary.
++
+ ### Custom `GLUTEN_HOME`
+
+ Point at an existing Gluten checkout instead of letting the launcher clone

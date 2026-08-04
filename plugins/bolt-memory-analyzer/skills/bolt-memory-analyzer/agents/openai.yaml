@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bolt Memory Analyzer"
+  short_description: "Trace and diagnose Bolt memory peaks and lifetimes"
+  default_prompt: "Use $bolt-memory-analyzer to instrument this Bolt checkout, capture a trace, and explain the memory peak and lifecycle issues."

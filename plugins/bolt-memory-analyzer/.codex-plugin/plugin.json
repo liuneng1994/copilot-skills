@@ -1,0 +1,39 @@
+{
+  "name": "bolt-memory-analyzer",
+  "version": "0.1.0",
+  "description": "Instrument and diagnose Bolt MemoryPool peaks, retention, leaks, and allocation churn.",
+  "author": {
+    "name": "liuneng1994",
+    "url": "https://github.com/liuneng1994"
+  },
+  "homepage": "https://github.com/liuneng1994/copilot-skills",
+  "repository": "https://github.com/liuneng1994/copilot-skills",
+  "license": "MIT AND Apache-2.0 AND ISC",
+  "keywords": [
+    "bolt",
+    "memory",
+    "profiling",
+    "flamegraph",
+    "performance"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Bolt Memory Analyzer",
+    "shortDescription": "Trace and diagnose Bolt memory behavior.",
+    "longDescription": "Install high-performance Bolt MemoryPool tracing, capture versioned binary traces, inspect interactive timelines and flame graphs, and generate model-friendly peak, lifetime, leak, and churn findings.",
+    "developerName": "liuneng1994",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write",
+      "Execute"
+    ],
+    "websiteURL": "https://github.com/liuneng1994/copilot-skills",
+    "defaultPrompt": [
+      "Install Bolt memory tracing in this checkout.",
+      "Capture and explain this Bolt memory peak.",
+      "Analyze this Bolt memory trace for leaks and retention."
+    ],
+    "brandColor": "#DC2626"
+  }
+}

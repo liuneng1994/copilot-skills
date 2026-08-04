@@ -26,6 +26,7 @@ Marketplace entries point at local plugin paths:
 
 - `ado-pipelines`
 - `bloop-test`
+- `bolt-memory-analyzer`
 - `brainstorming`
 - `copilot-memory`
 - `design-state-machine`
