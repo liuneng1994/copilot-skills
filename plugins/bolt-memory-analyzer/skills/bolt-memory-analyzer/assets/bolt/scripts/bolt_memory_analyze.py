@@ -26,7 +26,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Iterable
 
-import bolt_memory_trace_viewer as trace_viewer
+import bolt_memory_trace_core as trace_core
 
 
 SCHEMA_VERSION = "1.0"
@@ -263,9 +263,9 @@ def analyze(
     peak_concentration: float,
     max_findings: int,
 ) -> dict[str, Any]:
-    events, stacks, metadata_rows = trace_viewer.read_trace(trace_path)
+    events, stacks, metadata_rows = trace_core.read_trace(trace_path)
     metadata = metadata_rows[0]
-    model = trace_viewer.build_model(events, stacks)
+    model = trace_core.build_model(events, stacks)
     timeline = model["timeline"]
     allocations = lifetime_rows(
         model["allocations"],

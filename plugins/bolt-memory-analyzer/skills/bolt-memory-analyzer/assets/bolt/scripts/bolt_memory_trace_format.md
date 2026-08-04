@@ -1,7 +1,8 @@
 # Bolt Memory Trace Binary Format
 
 Bolt memory trace version 2 is a little-endian, append-only record stream. The
-producer is disabled unless `BOLT_MEMORY_TRACE_FILE` is set.
+producer is disabled unless `BOLT_MEMORY_TRACE_FILE` is set. Convert captures
+with `bolt_memory_perfetto.py` and inspect them through Perfetto Trace Processor.
 
 ## Header
 

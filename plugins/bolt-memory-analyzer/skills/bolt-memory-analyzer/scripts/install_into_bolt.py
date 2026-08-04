@@ -117,7 +117,7 @@ def main() -> int:
         shutil.copy2(source, destination)
     for relative in (
         Path("scripts/bolt_memory_analyze.py"),
-        Path("scripts/bolt_memory_trace_viewer.py"),
+        Path("scripts/bolt_memory_perfetto.py"),
     ):
         path = repo / relative
         path.chmod(path.stat().st_mode | 0o111)

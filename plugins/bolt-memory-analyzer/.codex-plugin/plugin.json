@@ -1,14 +1,14 @@
 {
   "name": "bolt-memory-analyzer",
-  "version": "0.1.0",
-  "description": "Instrument and diagnose Bolt MemoryPool peaks, retention, leaks, and allocation churn.",
+  "version": "0.2.0",
+  "description": "Instrument Bolt MemoryPool and analyze large traces with Perfetto Trace Processor.",
   "author": {
     "name": "liuneng1994",
     "url": "https://github.com/liuneng1994"
   },
   "homepage": "https://github.com/liuneng1994/copilot-skills",
   "repository": "https://github.com/liuneng1994/copilot-skills",
-  "license": "MIT AND Apache-2.0 AND ISC",
+  "license": "MIT AND Apache-2.0",
   "keywords": [
     "bolt",
     "memory",
@@ -20,7 +20,7 @@
   "interface": {
     "displayName": "Bolt Memory Analyzer",
     "shortDescription": "Trace and diagnose Bolt memory behavior.",
-    "longDescription": "Install high-performance Bolt MemoryPool tracing, capture versioned binary traces, inspect interactive timelines and flame graphs, and generate model-friendly peak, lifetime, leak, and churn findings.",
+    "longDescription": "Install high-performance Bolt MemoryPool tracing, convert large captures to standard Perfetto traces, query them with native Trace Processor SQL, inspect timeline and heap flame graphs, and generate model-friendly peak, lifetime, leak, and churn findings.",
     "developerName": "liuneng1994",
     "category": "Developer Tools",
     "capabilities": [
@@ -31,7 +31,7 @@
     "websiteURL": "https://github.com/liuneng1994/copilot-skills",
     "defaultPrompt": [
       "Install Bolt memory tracing in this checkout.",
-      "Capture and explain this Bolt memory peak.",
+      "Convert this Bolt memory trace to Perfetto and explain its peak.",
       "Analyze this Bolt memory trace for leaks and retention."
     ],
     "brandColor": "#DC2626"

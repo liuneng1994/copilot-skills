@@ -141,19 +141,20 @@ index 4e3a068bf9..098a95d5fd 100644
    }
  #define LEAK_CHECK()                      \
 diff --git a/scripts/README.md b/scripts/README.md
-index 9516756750..0c3d17baea 100644
+index 9516756750..e50d1d10ec 100644
 --- a/scripts/README.md
 +++ b/scripts/README.md
-@@ -8,6 +8,8 @@ Developer tooling for the Bolt repo.
+@@ -8,6 +8,9 @@ Developer tooling for the Bolt repo.
  | `install-bolt-deps.sh` | Pulls Bolt's pinned Conan deps into the local Conan cache. |
  | `install-gcc.sh` | Installs the GCC toolchain Bolt builds against (root required). |
  | `run-clang-tidy.py` | Runs clang-tidy on changed lines only; used by pre-commit + CI. |
-+| `bolt_memory_trace_viewer.py` | Builds an offline interactive HTML report from Bolt memory trace binary v2 files. |
++| `bolt_memory_trace_core.py` | Shared binary parsing, symbolization, and lifecycle reconstruction. |
 +| `bolt_memory_analyze.py` | Emits bounded JSON findings for automated and model-driven memory diagnosis. |
++| `bolt_memory_perfetto.py` | Converts traces to Perfetto, runs Trace Processor analysis, and serves large traces to Perfetto UI. |
  | `launch-spark.sh` | One-click Spark + Gluten + Bolt launcher with a long-lived Connect Server. |
  | `launch-spark/connect.py` | pyspark Connect client used by `launch-spark.sh sql` / `shell`. |
  | `launch-spark/test-queries.sql` | Smoke-test SQL covering scan/agg/join paths for Bolt offload verification. |
-@@ -35,6 +37,86 @@ scripts/launch-spark.sh shell                            # Python REPL
+@@ -35,6 +38,117 @@ scripts/launch-spark.sh shell                            # Python REPL
 
  See `scripts/launch-spark.sh --help` for env vars (ports, JAVA_HOME, etc.).
 
@@ -169,10 +170,6 @@ index 9516756750..0c3d17baea 100644
 +BOLT_MEMORY_TRACE_FILE=/tmp/bolt-memory.bin \
 +  ./_build/Release/bolt/dwio/parquet/tests/reader/bolt_dwio_parquet_table_scan_test \
 +  --gtest_filter=ParquetTableScanTest.basic
-+
-+python3 scripts/bolt_memory_trace_viewer.py \
-+  /tmp/bolt-memory.bin \
-+  -o /tmp/bolt-memory.html
 +```
 +
 +Useful optional controls:
@@ -186,20 +183,55 @@ index 9516756750..0c3d17baea 100644
 +```
 +
 +Stacks are captured as raw program counters on the allocation thread. The
-+viewer resolves them offline with `addr2line` using executable mappings stored
-+in the trace. This keeps symbolization out of the allocation hot path. If the
-+matching binaries are unavailable, frames fall back to `module+offset`.
-+
-+The generated HTML is self-contained and can be opened offline. It shows the
-+full-period memory usage timeline, pool distribution, allocation call sites,
-+allocation lifetimes, live allocations at process end, and unmatched frees. The
-+allocation flame graph uses vendored `d3` and `d3-flame-graph` assets under
-+`scripts/vendor/`; they are embedded into the output HTML so hover details,
-+search highlighting, and click-to-zoom work without a network connection. Click
-+the timeline to rebuild the flame graph for live allocations at that point, or
-+drag a time range to rebuild it from allocations overlapping the selected window.
++Perfetto converter resolves them offline with `addr2line` using executable
++mappings stored in the trace. This keeps symbolization out of the allocation
++hot path. If the matching binaries are unavailable, frames fall back to
++`module+offset`.
 +
 +See `scripts/bolt_memory_trace_format.md` for the binary protocol.
++
++### Large traces with Perfetto
++
++Use Perfetto for captures. Trace Processor parses and indexes the trace
++natively, and Perfetto UI queries only the visible time range.
++
++One-command preparation downloads the official Trace Processor into a local
++cache, converts the Bolt trace, validates it with native SQL analysis, and
++prints the next command:
++
++```bash
++python3 scripts/bolt_memory_perfetto.py prepare \
++  /tmp/bolt-memory.bin \
++  -o /tmp/bolt-memory.perfetto-trace
++```
++
++The converter emits standard Perfetto data:
++
++- TrackEvent allocation, free, and grow events with exact allocation IDs;
++- active-byte and active-allocation counter tracks;
++- interned mappings, frames, and callstacks;
++- periodic, peak, and final native heap ProfilePacket snapshots;
++- pool and stack metadata for Bolt-specific SQL analysis.
++
++Run model-oriented analysis through native Trace Processor:
++
++```bash
++python3 scripts/bolt_memory_perfetto.py analyze \
++  /tmp/bolt-memory.perfetto-trace \
++  --trace-processor ~/.cache/bolt-memory-perfetto/home/.local/share/perfetto/prebuilts/trace_processor_shell-*
++```
++
++Start the native local accelerator for the browser UI:
++
++```bash
++python3 scripts/bolt_memory_perfetto.py serve \
++  /tmp/bolt-memory.perfetto-trace \
++  --trace-processor <trace_processor_shell>
++```
++
++Then open `https://ui.perfetto.dev` and connect to the local Trace Processor at
++`http://127.0.0.1:9001`. Trace Processor owns parsing, indexing, SQL execution,
++and range queries, so multi-gigabyte captures do not enter browser memory.
 +
 +### Model-oriented analysis
 +

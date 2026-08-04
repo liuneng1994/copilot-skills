@@ -17,11 +17,11 @@ EXPECTED_FILES = [
     "bolt/common/memory/MemoryTraceRecorder.cpp",
     "bolt/common/memory/MemoryTraceRecorder.h",
     "scripts/bolt_memory_analyze.py",
-    "scripts/bolt_memory_trace_viewer.py",
+    "scripts/bolt_memory_perfetto.py",
+    "scripts/bolt_memory_trace_core.py",
     "scripts/bolt_memory_trace_format.md",
+    "scripts/perfetto/bolt_memory.sql",
     "scripts/tests/test_bolt_memory_analyze.py",
-    "scripts/vendor/d3.min.js",
-    "scripts/vendor/d3-flamegraph.min.js",
 ]
 
 
@@ -57,7 +57,7 @@ def main() -> int:
         relative
         for relative in (
             "scripts/bolt_memory_analyze.py",
-            "scripts/bolt_memory_trace_viewer.py",
+            "scripts/bolt_memory_perfetto.py",
         )
         if not ((repo / relative).stat().st_mode & 0o111)
     ]
@@ -85,7 +85,8 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="bolt-memory-verify-") as directory:
         for script in (
             repo / "scripts/bolt_memory_analyze.py",
-            repo / "scripts/bolt_memory_trace_viewer.py",
+            repo / "scripts/bolt_memory_perfetto.py",
+            repo / "scripts/bolt_memory_trace_core.py",
         ):
             py_compile.compile(
                 str(script),

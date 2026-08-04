@@ -1,6 +1,6 @@
 ---
 name: bolt-memory-analyzer
-description: Instrument a Bolt checkout with a configurable high-performance MemoryPool recorder, capture binary v2 memory traces, generate an offline interactive timeline/flame-graph report, and emit bounded JSON findings for memory peaks, long allocation lifetimes, leaks, unmatched lifecycle events, allocation churn, and trace-integrity problems. Use when asked to install or update Bolt memory tracing, run a memory capture, explain a memory peak, inspect retention or leaks, analyze a .bin Bolt memory trace, generate the HTML report, or provide model-oriented memory diagnosis.
+description: Instrument a Bolt checkout with a configurable high-performance MemoryPool recorder, convert large binary v2 captures to standard Perfetto TrackEvent and native heap traces, query them with Trace Processor SQL, serve them to Perfetto UI, and emit bounded JSON findings for memory peaks, long allocation lifetimes, leaks, unmatched lifecycle events, and churn. Use when asked to install or update Bolt memory tracing, migrate memory analysis to Perfetto, process a large trace with native indexing, run a memory capture, explain a memory peak, inspect retention or leaks, analyze a .bin or .perfetto-trace file, or provide model-oriented memory diagnosis.
 ---
 
 # Bolt Memory Analyzer
@@ -83,19 +83,29 @@ The recorder writes binary v2, interns pools and raw stacks, records executable
 mappings, and symbolizes offline. Preserve the profiled binaries until analysis
 finishes; otherwise frames fall back to `module+offset`.
 
-## Analyze For A Model
+## Prepare Large Traces With Perfetto
 
-Prefer compact JSON:
+Use Perfetto for large traces. Native Trace Processor parses and indexes them,
+and Perfetto UI queries visible ranges.
 
 ```bash
-python3 <bolt-checkout>/scripts/bolt_memory_analyze.py \
+python3 <bolt-checkout>/scripts/bolt_memory_perfetto.py prepare \
   /tmp/bolt-memory.bin \
-  --format json \
-  --top 5 \
-  --max-frames 8
+  -o /tmp/bolt-memory.perfetto-trace
 ```
 
-Use these sections in order:
+This downloads the official Trace Processor into a local cache, converts the
+trace, runs native SQL analysis, and prints the next `serve` command.
+
+For an existing Perfetto trace:
+
+```bash
+python3 <bolt-checkout>/scripts/bolt_memory_perfetto.py analyze \
+  /tmp/bolt-memory.perfetto-trace \
+  --trace-processor <trace_processor_shell>
+```
+
+Use these JSON sections in order:
 
 1. `assessment`: severity, confidence, and finding count.
 2. `findings`: actionable conclusions and evidence references.
@@ -107,30 +117,34 @@ Use these sections in order:
 Never call pool concentration a leak by itself. Treat `live-at-end`,
 `long-lifetime`, `unmatched-free`, and slow post-peak release as retention
 signals. Adjust thresholds with CLI flags when workload duration or expected
-buffer ownership is known. Use `--fail-on warning` or `--fail-on critical` only
-for CI policy.
+buffer ownership is known.
 
-## Generate Interactive Report
+## Open Perfetto UI
 
 ```bash
-python3 <bolt-checkout>/scripts/bolt_memory_trace_viewer.py \
-  /tmp/bolt-memory.bin \
-  -o ./bolt-memory-report.html
+python3 <bolt-checkout>/scripts/bolt_memory_perfetto.py serve \
+  /tmp/bolt-memory.perfetto-trace \
+  --trace-processor <trace_processor_shell>
 ```
 
-Open the self-contained HTML. Click the timeline for allocations live at one
-point; drag a range to update KPIs, tables, and flame graph for allocations
-overlapping that interval. Verify the report with a headless browser when one is
-available.
+Open `https://ui.perfetto.dev` and accept the native acceleration prompt. The
+local Trace Processor serves the already-loaded trace at
+`http://127.0.0.1:9001`.
+
+The Perfetto trace contains exact alloc/free/grow TrackEvents, active-memory
+counter tracks, interned mappings/callstacks, and periodic/peak/final native
+heap snapshots.
 
 ## Validate The Bundled Tool
 
 Run:
 
 ```bash
-python3 -m unittest -v \
-  <bolt-checkout>/scripts/tests/test_bolt_memory_analyze.py
+TRACE_PROCESSOR=<trace_processor_shell> \
+  python3 <bolt-checkout>/scripts/tests/test_bolt_memory_analyze.py
 ```
 
-The tests cover leaks, long lifetimes, allocation churn, truncated traces, and
-grow-aware peak replay.
+Set `TRACE_PROCESSOR=<trace_processor_shell>` to include Perfetto conversion and
+native SQL integration tests. Tests cover leaks, long lifetimes, allocation
+churn, truncated traces, grow-aware peak replay, peak conservation, and
+Perfetto findings.

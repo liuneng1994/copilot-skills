@@ -1,4 +1,6 @@
 import importlib.util
+import os
+import shutil
 import struct
 import sys
 import tempfile
@@ -15,6 +17,13 @@ spec = importlib.util.spec_from_file_location(
 analyzer = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = analyzer
 spec.loader.exec_module(analyzer)
+
+perfetto_spec = importlib.util.spec_from_file_location(
+    "bolt_memory_perfetto", SCRIPTS_DIR / "bolt_memory_perfetto.py"
+)
+perfetto_analyzer = importlib.util.module_from_spec(perfetto_spec)
+sys.modules[perfetto_spec.name] = perfetto_analyzer
+perfetto_spec.loader.exec_module(perfetto_analyzer)
 
 
 HEADER = struct.Struct("<8sHHIIIQQIIQ")
@@ -262,6 +271,42 @@ class MemoryAnalyzeTest(unittest.TestCase):
         self.assertEqual(active[0]["size"], 300)
         self.assertEqual(active[0]["stack_id"], 2)
         self.assertEqual(sum(row["size"] for row in growth), 200)
+
+    def test_perfetto_conversion_and_trace_processor_analysis(self):
+        trace_processor = os.environ.get("TRACE_PROCESSOR")
+        if trace_processor is None:
+            trace_processor = shutil.which("trace_processor_shell")
+        if trace_processor is None:
+            self.skipTest("TRACE_PROCESSOR is not available")
+
+        with tempfile.TemporaryDirectory() as directory:
+            trace = Path(directory) / "trace.bin"
+            perfetto_trace = Path(directory) / "trace.perfetto-trace"
+            synthetic_trace(trace)
+            conversion = perfetto_analyzer.convert(
+                trace,
+                perfetto_trace,
+                symbolize=False,
+                snapshot_events=10,
+            )
+            report = perfetto_analyzer.analyze_trace(
+                perfetto_trace,
+                Path(trace_processor),
+                top=5,
+                long_lived_ms=500,
+                short_lived_ms=10,
+            )
+
+        finding_ids = {row["id"] for row in report["findings"]}
+        self.assertEqual(conversion["events"], 45)
+        self.assertGreaterEqual(conversion["snapshots"], 2)
+        self.assertEqual(report["assessment"]["severity"], "critical")
+        self.assertIn("live-at-end", finding_ids)
+        self.assertIn("long-lifetime", finding_ids)
+        self.assertEqual(
+            report["metrics"]["peak_bytes"],
+            report["peak"]["pool_coverage"]["bytes"],
+        )
 
 
 if __name__ == "__main__":
