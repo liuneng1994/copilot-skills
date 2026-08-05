@@ -97,6 +97,12 @@ python3 <bolt-checkout>/scripts/bolt_memory_perfetto.py prepare \
 This downloads the official Trace Processor into a local cache, converts the
 trace, runs native SQL analysis, and prints the next `serve` command.
 
+Check the conversion summary before opening Perfetto. `symbols=X/Y frames`
+should have a non-zero `X`. If it is zero, keep the captured ELF binaries and
+debug symbols at their recorded paths, install `addr2line`, and rerun without
+`--no-symbolize`. An address-only flamegraph is a fallback, not a completed
+analysis.
+
 For an existing Perfetto trace:
 
 ```bash

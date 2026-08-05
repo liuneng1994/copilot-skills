@@ -1,6 +1,6 @@
 {
   "name": "bolt-memory-analyzer",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Instrument Bolt MemoryPool and analyze arbitrary trace ranges with Perfetto.",
   "author": {
     "name": "liuneng1994",

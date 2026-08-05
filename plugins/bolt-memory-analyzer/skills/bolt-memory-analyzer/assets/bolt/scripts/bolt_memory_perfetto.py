@@ -23,6 +23,7 @@ import csv
 import io
 import json
 import os
+import re
 import shutil
 import struct
 import subprocess
@@ -400,6 +401,39 @@ def symbol_frames(symbols: dict[int, str], stack_id: int) -> list[str]:
     return frames
 
 
+def symbolization_stats(definitions: Definitions) -> tuple[int, int, int]:
+    total_frames = sum(len(stack) for stack in definitions.raw_stacks.values())
+    symbolized_frames = 0
+    symbolized_stacks = 0
+    for stack_id, raw_frames in definitions.raw_stacks.items():
+        frames = symbol_frames(definitions.symbols, stack_id)[
+            : len(raw_frames)
+        ]
+        resolved = [
+            frame
+            for frame in frames
+            if not frame.startswith("0x")
+            and not re.search(r"\+0x[0-9a-fA-F]+$", frame)
+        ]
+        symbolized_frames += len(resolved)
+        symbolized_stacks += bool(resolved)
+    return total_frames, symbolized_frames, symbolized_stacks
+
+
+def report_symbolization(result: dict[str, int], requested: bool) -> None:
+    total = result["total_frames"]
+    symbolized = result["symbolized_frames"]
+    if not requested or total == 0 or symbolized > 0:
+        return
+    print(
+        "warning: symbolization resolved 0/"
+        f"{total} frames; keep the recorded ELF binaries and debug symbols "
+        "at their captured paths, install addr2line, and do not use "
+        "--no-symbolize",
+        file=sys.stderr,
+    )
+
+
 class PerfettoInterning:
     def __init__(self, definitions: Definitions):
         self.definitions = definitions
@@ -750,6 +784,9 @@ def convert(
     snapshot_events: int,
 ) -> dict[str, int]:
     definitions = collect_definitions(input_path, symbolize)
+    total_frames, symbolized_frames, symbolized_stacks = symbolization_stats(
+        definitions
+    )
     interning = PerfettoInterning(definitions)
     stack_nodes, stack_leaf_nodes = stack_node_definitions(definitions)
     emitted_stacks: set[int] = set()
@@ -925,6 +962,9 @@ def convert(
         "stacks": len(emitted_stacks),
         "mappings": len(definitions.mappings),
         "snapshots": snapshot_count,
+        "total_frames": total_frames,
+        "symbolized_frames": symbolized_frames,
+        "symbolized_stacks": symbolized_stacks,
     }
 
 
@@ -1386,11 +1426,14 @@ def main() -> int:
                 symbolize=not args.no_symbolize,
                 snapshot_events=max(0, args.snapshot_events),
             )
+            report_symbolization(result, requested=not args.no_symbolize)
             print(
                 f"wrote {args.output} "
                 f"events={result['events']} stacks={result['stacks']} "
                 f"mappings={result['mappings']} "
-                f"snapshots={result['snapshots']}"
+                f"snapshots={result['snapshots']} "
+                f"symbols={result['symbolized_frames']}/"
+                f"{result['total_frames']} frames"
             )
             return 0
         if args.command == "prepare":
@@ -1405,6 +1448,7 @@ def main() -> int:
                 symbolize=not args.no_symbolize,
                 snapshot_events=max(0, args.snapshot_events),
             )
+            report_symbolization(result, requested=not args.no_symbolize)
             report = analyze_trace(
                 args.output,
                 trace_processor,

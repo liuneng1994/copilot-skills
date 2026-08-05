@@ -300,6 +300,9 @@ class MemoryAnalyzeTest(unittest.TestCase):
         finding_ids = {row["id"] for row in report["findings"]}
         self.assertEqual(conversion["events"], 45)
         self.assertGreaterEqual(conversion["snapshots"], 2)
+        self.assertGreater(conversion["total_frames"], 0)
+        self.assertEqual(conversion["symbolized_frames"], 0)
+        self.assertEqual(conversion["symbolized_stacks"], 0)
         self.assertEqual(report["assessment"]["severity"], "critical")
         self.assertIn("live-at-end", finding_ids)
         self.assertIn("long-lifetime", finding_ids)
@@ -438,6 +441,29 @@ class MemoryAnalyzeTest(unittest.TestCase):
         self.assertTrue(all(leaf in node_ids for leaf in leaves.values()))
         self.assertTrue(
             all(parent == 0 or parent in node_ids for _, parent, _ in nodes)
+        )
+
+    def test_symbolization_coverage_ignores_address_fallbacks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            trace = Path(directory) / "trace.bin"
+            synthetic_trace(trace)
+            definitions = perfetto_analyzer.collect_definitions(
+                trace,
+                symbolize=False,
+            )
+
+        self.assertEqual(
+            perfetto_analyzer.symbolization_stats(definitions),
+            (1, 0, 0),
+        )
+        definitions.raw_stacks[1].append(0x5678)
+        definitions.symbols[1] = (
+            "# 0  bolt_test+0x1234\n"
+            "# 1  bytedance::bolt::memory::MemoryPool::allocate"
+        )
+        self.assertEqual(
+            perfetto_analyzer.symbolization_stats(definitions),
+            (2, 1, 1),
         )
 
     def test_perfetto_flamegraph_accepts_stack_node_types(self):
